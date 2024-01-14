@@ -1,0 +1,16 @@
+[[git_repo]]
+Name = "GUI Frame"
+Path = "D:\\Programmieren\\Dashboard\\GUI_Frame"
+Url = "https://github.com/hengst85/GUI_Frame.git"
+Branch = "main"
+SyncTime = 60
+
+[[git_repo]]
+Name = "Application Project"
+Path = "D:\\Programmieren\\Dashboard\\LogMessageViewer"
+Url = "https://github.com/hengst85/LogMessageViewer.git"
+Branch = "main"
+SyncTime = 60
+
+[[svn_repo]]
+Name = "Bulu"

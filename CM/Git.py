@@ -16,17 +16,17 @@ from send2trash import send2trash
 
 # customer modules
 # Get config data
-from ConfigFileHandling import GetConfigData
+# from ConfigFileHandling import GetConfigData
 
-ConfigData = GetConfigData({"Tools": "Tools"}, printInfo=False)
+# ConfigData = GetConfigData({"Tools": "Tools"}, printInfo=False)
 
-# dSPACE modules (for message handling)
-if os.path.exists(ConfigData["WFM"]["PythonApi"]):
-    if ConfigData["WFM"]["PythonApi"] not in sys.path:
-        sys.path.append(ConfigData["WFM"]["PythonApi"])
-    from WFM.Base import API
+# # dSPACE modules (for message handling)
+# if os.path.exists(ConfigData["WFM"]["PythonApi"]):
+#     if ConfigData["WFM"]["PythonApi"] not in sys.path:
+#         sys.path.append(ConfigData["WFM"]["PythonApi"])
+#     from WFM.Base import API
 
-    api = API()
+#     api = API()
 
 """ --------------------------------------------------------------------------------
 Import Modules"""
