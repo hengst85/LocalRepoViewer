@@ -7,6 +7,7 @@ Import Modules """
 import os
 import sys
 import json
+import subprocess
 from git import Repo
 from zipfile import ZipFile
 from pathlib import Path
@@ -74,10 +75,12 @@ class ExtendedGitRepo(Repo):
             firstCommitRev = self.branches[branch].repo.git.rev_list("--max-parents=0","HEAD")
             if firstCommitRev:
                 firstCommitRev = firstCommitRev.split()[-1]
-            api.sendDebugMessage(f"First commit is '{firstCommitRev}' for branch {branch}.")
+            if "api" in globals():
+                api.sendDebugMessage(f"First commit is '{firstCommitRev}' for branch {branch}.")
             return firstCommitRev
         else:
-            api.sendDebugMessage(f"{branch} does not exist in given repository.")
+            if "api" in globals():
+                api.sendDebugMessage(f"{branch} does not exist in given repository.")
             return None
 
 
@@ -254,3 +257,17 @@ class ExtendedGitRepo(Repo):
         tree = self.heads[self.active_branch.name].commit.tree
         
         return tree[item.as_posix()].hexsha
+    
+    
+    def openExplorer(self) -> None:
+        os.startfile(self.working_dir)
+        
+    
+    def openBash(self) -> None:
+        os.system(f'start "" "{os.getenv("HILGitBashPath", None)}" --cd="{self.working_dir}"')
+        subprocess.Popen([os.getenv('HilGitBashPath'),f'--cd={self.working_dir}'])
+    
+        
+    def openGithub(self) -> None:
+        os.chdir(self.working_dir)
+        subprocess.run(['gh','repo', 'view', '-w'])

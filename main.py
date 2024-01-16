@@ -8,7 +8,8 @@ def main() -> None:
     ui.colors(primary='#022b61', secondary='#555555', accent='#111B1E', positive='#53B689')
 
     with ui.column().classes('w-full'):
-        repo_viewer(r'D:\Programmieren\Dashboard\LocalRepoViewer\config.toml')
+        #repo_viewer(r'D:\Programmieren\Dashboard\LocalRepoViewer\config.toml')
+        repo_viewer(r'C:\HIL\ApplicationArea\EEVMerkenich\Tools\Dashboard\LocalRepoViewer\config2.toml')
 
     ui.run(reload=True)
     

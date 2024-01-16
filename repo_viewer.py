@@ -1,6 +1,8 @@
-from nicegui import ui
+from nicegui import ui, events
 from pathlib import Path
 import tomli
+import os
+import subprocess
 
 from CM.Git import ExtendedGitRepo as GitRepo
 
@@ -33,19 +35,27 @@ class repo_viewer():
                 self._config = tomli.load(f)
         except tomli.TOMLDecodeError:
             self._config = None
-               
-               
+            
+            
     def __get_git_table_rows(self) -> list:
         row = []        
         
         for r in self._config['git_repo']:
             repo = GitRepo(r['Path'])
+            if repo.checkLocalRevExists(repo.getRemoteHeadRev(repo.active_branch.name)):
+                status = "Fetch Required"
+            elif repo.is_dirty():
+                status = "Local changes"
+            else:
+                status = "Up-to-Date"
+            #repo.git.status('-s')
+                
             row.append({
-                'name': r['Name'],
                 'path': r['Path'],
                 'url': next(repo.remotes.origin.urls),
-                'branch': repo.active_branch.name,
-                'status': repo.is_dirty(),
+                'expectedBranch': r['Branch'],
+                'activeBranch': repo.active_branch.name,
+                'status': status,
                 })
     
         return row
@@ -53,6 +63,13 @@ class repo_viewer():
     
     def __update_git_table(self) -> None:
         pass
+        # # Clear rows
+        # self.git_table.remove_rows(*self.git_table.rows)
+        
+        # # Set table data
+        # for item in self.__get_git_table_rows():
+        #     self.git_table.add_rows(item)
+
     
     def _git_card(self, repo):
         with ui.card().classes('m-2'):
@@ -69,19 +86,14 @@ class repo_viewer():
                     
                     
     def git_repo_table(self):
-        self.visibleColumns = {'name', 'path', 'status'}
+        self.visibleColumns = {'path', 'activeBranch', 'status', 'actions'}
         self._columnDefs = [
-            {
-                'name': 'name', 
-                'label': 'Repo Name', 
-                'field': 'name', 
-                'sortable': True
-            },
             {
                 'name': 'path', 
                 'label': 'Folder Path', 
-                'field': 'path', 
-                'sortable': False
+                'field': 'path',
+                'align': 'left', 
+                'sortable': True
             },
             {
                 'name': 'url', 
@@ -90,16 +102,16 @@ class repo_viewer():
                 'sortable': False
             },
             {
-                'name': 'branch', 
-                'label': 'Branch', 
-                'field': 'branch', 
+                'name': 'expectedBranch', 
+                'label': '', 
+                'field': 'expectedBranch', 
                 'sortable': False
             },
             {
-                'name': 'git_fetch', 
-                'label': 'Fetch', 
-                'field': 'git_fetch', 
-                'sortable': True
+                'name': 'activeBranch', 
+                'label': 'Active Branch', 
+                'field': 'activeBranch', 
+                'sortable': False
             },
             {
                 'name': 'status',  
@@ -108,38 +120,17 @@ class repo_viewer():
                 'sortable': True
             },
             {
-                'name': 'git_changes',
-                'label': 'Changes Found',
-                'field': 'git_changes',
-                'sortable': True
-            },
-            {
-                'name': 'git_command', 
-                'label': 'Git Pull', 
-                'field': 'git', 
-                'sortable': False
-            },
-            {
-                'name': 'git_bash', 
-                'label': 'Bash', 
-                'field': 'git_bash', 
-                'sortable': False
-            },
-            {
-                'name': 'open_folder', 
-                'label': 'Open', 
-                'field': 'open_folder', 
+                'name': 'actions', 
+                'label': '', 
+                'field': 'actions', 
                 'sortable': False
             }
         ]
         
-        with ui.table(columns=self._columnDefs, rows=[], row_key='name').classes('w-full font-bold') as self.git_table:
+        with ui.table(columns=self._columnDefs, rows=[], row_key='path').classes('w-full') as self.git_table:
             self.git_table._props['columns'] = [column for column in self._columnDefs if column['name'] in self.visibleColumns]
             self.git_table._props['virtual-scroll'] = False #! If true, column widths change with scrolling
             self.git_table._props['wrap-cells'] = True
-
-            self.git_table._props['table-header-class'] = ["text-primary"]
-            self.git_table._props['table-class'] = "text-secondary"
 
             # self.table.add_slot('body-cell-severity', '''
             #     <q-td key="severity" :props="props">
@@ -152,52 +143,80 @@ class repo_viewer():
             #     </q-td>
             # ''')
 
-            # Open log in default editor
+            # Refresh table
             with self.git_table.add_slot('top-right'):
-                ui.button('Update', on_click=lambda: self.openFile()).props('icon=open_in_new').tooltip('Open Log file in default editor')
-           
+                ui.button('Refresh', on_click=lambda: self.__update_git_table()).props('icon=refresh').tooltip('Refresh Git repo table')
+        
 
             self.git_table.add_slot('header', r'''
                 <q-tr :props="props">
                     <q-th auto-width />
-                    <q-th v-for="col in props.cols" :key="col.name" :props="props">
+                    <q-th v-for="col in props.cols" :key="col.name" :props="props" class="text-primary">
                         {{ col.label }}
                     </q-th>
                 </q-tr>
             ''')
+            
+            # <q-td v-for="col in props.cols" :key="col.name" :props="props" class="text-secondary">
+            #     {{ col.value }}
+            # </q-td>
             self.git_table.add_slot('body', r'''
                 <q-tr :props="props">
                     <q-td auto-width>
-                        <q-btn size="sm" color="accent" round dense
+                        <q-btn size="sm" color="primary" round dense
                             @click="props.expand = !props.expand"
                             :icon="props.expand ? 'remove' : 'add'" />
                     </q-td>
-                    <q-td v-for="col in props.cols" :key="col.name" :props="props">
-                        {{ col.value }}
+                    <q-td key="path" :props="props">
+                        {{ props.row.path }}
+                    </q-td>
+                    <q-td key="activeBranch" :props="props">
+                        <q-badge  :class="(props.row.expectedBranch==props.row.activeBranch)?'bg-white text-secondary':
+                                            'bg-warning text-white font-bold'">
+                            {{ props.row.activeBranch }}
+                        </q-badge>
+                    </q-td>
+                    <q-td key="status" :props="props">
+                        <q-badge  :class="(props.row.status=='Up-to-Date')?'bg-white text-secondary':
+                                            'bg-negative text-white font-bold'">
+                            {{ props.row.status }}
+                        </q-badge>
+                    </q-td>
+                    <q-td key="actions" :props="props">
+                        <q-btn @click="$parent.$emit('refresh', props)" icon="refresh" flat dense color='primary'/>
+                        <q-btn @click="$parent.$emit('open', props)" icon="folder_open" flat dense color='primary'/>
+                        <q-btn @click="$parent.$emit('bash', props)" icon="web_asset" flat dense color='primary'/>
+                        <q-btn @click="$parent.$emit('github', props)" icon="public" flat dense color='primary'/>
                     </q-td>
                 </q-tr>
                 <q-tr v-show="props.expand" :props="props">
+                    <q-td auto-width />
                     <q-td colspan="100%">
-                        <div class="text-left">Remote Url: {{ props.row.url }}.</div>
-                        <div class="text-left">Active Branch: {{ props.row.branch }}.</div>
+                        <div class="text-left">Remote Url: {{ props.row.url }}</div>
+                        <div class="text-left">Active Branch: {{ props.row.activeBranch }} ({{ props.row.expectedBranch }})</div>
                     </q-td>
                 </q-tr>
             ''')
 
-            self.git_table.add_slot(f'body-cell-git_command', """
-                <q-td :props="props">
-                    <q-btn @click="$parent.$emit('git_command', props.row)" icon="download" color="primary"/>
-                </q-td>
-            """)
-            self.git_table.add_slot(f'body-cell-git_bash', """
-                <q-td :props="props">
-                    <q-btn @click="$parent.$emit('git_bash', props.row)" icon="settings" color="primary"/>
-                </q-td>
-            """)
-            self.git_table.add_slot(f'body-cell-open_folder', """
-                <q-td :props="props">
-                    <q-btn @click="$parent.$emit('open_folder', props.row)" icon="folder" color="primary" label="Open"/>
-                </q-td>
-            """)
+            self.git_table.on('refresh', lambda e: self.refresh_row(e))
+            self.git_table.on('open', lambda e: self.open_folder(e))
+            self.git_table.on('bash', lambda e: self.open_git_bash(e))
+            self.git_table.on('github', lambda e: self.open_github(e))
             
             self.git_table.rows = self.__get_git_table_rows()
+            
+            
+    def refresh_row(self, e: events.GenericEventArguments) -> None:
+        print(e.args['row']['path'])
+    
+            
+    def open_folder(self, e: events.GenericEventArguments) -> None:
+        GitRepo(e.args['row']['path']).openExplorer()
+
+
+    def open_git_bash(self, e: events.GenericEventArguments) -> None: 
+        GitRepo(e.args['row']['path']).openBash()
+
+
+    def open_github(self, e: events.GenericEventArguments) -> None:
+        GitRepo(e.args['row']['path']).openGithub()
