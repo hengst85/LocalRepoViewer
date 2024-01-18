@@ -3,6 +3,9 @@ from pathlib import Path
 import tomli
 import os
 import subprocess
+import asyncio
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 
 from CM.Git import ExtendedGitRepo as GitRepo
 
@@ -13,38 +16,52 @@ class repo_viewer():
         
         # load config file
         self._load_config()
-                
+        
+        # File handling
+        self.config_file_handler()
+        
         # Build up git repo cards
         if self._config['git_repo']:
             self.git_repo_table()
 
-        # with ui.card().classes('m-2 w-full'):
-        #     for repo in self._config['git_repo']:
-        #         self._git_card(repo)
+        # Build up git repo cards
+        if self._config['svn_repo']:
+            pass#self.svn_repo_table()
         
-        
-        # Build up svn repo cards
-        with ui.card().classes('m-2  w-full'):
-            for repo in self._config['svn_repo']:
-                self._svn_card(repo)
-    
-        
+        # Logger
+        self.log = ui.log(max_lines=20).classes('w-full h-40')
+
+
     def _load_config(self) -> dict:
         try:
             with open(self._filePath, mode = "rb") as f:
                 self._config = tomli.load(f)
         except tomli.TOMLDecodeError:
             self._config = None
+
+    def config_file_handler(self) -> None:
+        # File selection
+        with ui.row().classes('items-center w-full'):
+            selectedFile = ui.select([self._filePath.as_posix()],value=self._filePath.as_posix(), label='Configuration File').on('click', lambda: os.startfile(self._filePath))
+            selectedFile.props('readonly borderless hide-dropdown-icon label-color="primary"')
+            selectedFile.style('min-width: 350px;')
             
-            
+            ui.button(color='primary', on_click=lambda: self.update(), icon='refresh').props('flat dense')
+                    
+
+    def update(self, filePath:str) -> None:
+        pass
+
     def __get_git_table_rows(self) -> list:
+        self.__fetch_repos_parallel([r['Path'] for r in self._config['git_repo']])
         row = []        
         
         for r in self._config['git_repo']:
             repo = GitRepo(r['Path'])
-            if repo.checkLocalRevExists(repo.getRemoteHeadRev(repo.active_branch.name)):
-                status = "Fetch Required"
-            elif repo.is_dirty():
+            # if repo.checkLocalRevExists(repo.getRemoteHeadRev(repo.active_branch.name)):
+            #     status = "Fetch Required"
+            # el
+            if repo.is_dirty():
                 status = "Local changes"
             else:
                 status = "Up-to-Date"
@@ -55,7 +72,9 @@ class repo_viewer():
                 'url': next(repo.remotes.origin.urls),
                 'expectedBranch': r['Branch'],
                 'activeBranch': repo.active_branch.name,
-                'status': status,
+                'status': repo.git.status('-s'),
+                'localStatus': repo.is_dirty(untracked_files=True),
+                'remoteStatus': status
                 })
     
         return row
@@ -70,23 +89,26 @@ class repo_viewer():
         # for item in self.__get_git_table_rows():
         #     self.git_table.add_rows(item)
 
-    
-    def _git_card(self, repo):
-        with ui.card().classes('m-2'):
-            with ui.expansion(repo['Name'], icon='verified', value=True).classes('w-full text-h6 font-bold text-primary').props('dense switch-toggle-side'):
-                with ui.row().classes('items-center flex-nowrap m-1'):
-                    ui.label(repo['Name'])
+    @classmethod
+    def __pull_repo(repoPath: str) -> None:
+        GitRepo(repoPath).git.pull()
 
+    @classmethod
+    def __fetch_repo(repoPath: str) -> None:
+        GitRepo(repoPath).git.fetch()
 
-    def _svn_card(self, repo):
-        with ui.card().classes('m-2'):
-            with ui.expansion(repo['Name'], icon='verified', value=True).classes('w-full text-h5 font-bold text-primary'):
-                with ui.row().classes('items-center flex-nowrap m-1'):
-                    ui.label(repo['Name'])
-                    
-                    
+    def __pull_repos_parallel(self, repoPaths: list, max_workers: int = 10):
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            executor.map(self.__pull_repo, repoPaths)
+            
+        
+    def __fetch_repos_parallel(self, repoPaths: list, max_workers: int = 10):
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            executor.map(self.__fetch_repo, repoPaths)
+
+        
     def git_repo_table(self):
-        self.visibleColumns = {'path', 'activeBranch', 'status', 'actions'}
+        self.visibleColumns = {'path', 'activeBranch', 'localStatus', 'remoteStatus', 'actions', 'actions2'}
         self._columnDefs = [
             {
                 'name': 'path', 
@@ -120,9 +142,27 @@ class repo_viewer():
                 'sortable': True
             },
             {
+                'name': 'localStatus',  
+                'label': 'Local Status', 
+                'field': 'localStatus',
+                'sortable': True
+            },
+            {
+                'name': 'remoteStatus',  
+                'label': 'Remote Status', 
+                'field': 'remoteStatus',
+                'sortable': True
+            },
+            {
                 'name': 'actions', 
                 'label': '', 
                 'field': 'actions', 
+                'sortable': False
+            },
+            {
+                'name': 'actions2', 
+                'label': '', 
+                'field': 'actions2', 
                 'sortable': False
             }
         ]
@@ -132,34 +172,15 @@ class repo_viewer():
             self.git_table._props['virtual-scroll'] = False #! If true, column widths change with scrolling
             self.git_table._props['wrap-cells'] = True
 
-            # self.table.add_slot('body-cell-severity', '''
-            #     <q-td key="severity" :props="props">
-            #         <q-badge  :class="(props.row.severity=='WARNING')?'bg-white text-warning font-bold':
-            #                             (props.row.severity=='ERROR')?'bg-white text-negative font-bold':
-            #                             (props.row.severity=='DEBUG')?'bg-white text-info font-bold':
-            #                             'bg-white text-secondary font-bold'">
-            #             {{ props.row.severity }}
-            #         </q-badge>
-            #     </q-td>
-            # ''')
-
-            # Refresh table
-            with self.git_table.add_slot('top-right'):
-                ui.button('Refresh', on_click=lambda: self.__update_git_table()).props('icon=refresh').tooltip('Refresh Git repo table')
-        
-
             self.git_table.add_slot('header', r'''
                 <q-tr :props="props">
                     <q-th auto-width />
                     <q-th v-for="col in props.cols" :key="col.name" :props="props" class="text-primary">
-                        {{ col.label }}
+                        <b>{{ col.label }}</b>
                     </q-th>
                 </q-tr>
             ''')
-            
-            # <q-td v-for="col in props.cols" :key="col.name" :props="props" class="text-secondary">
-            #     {{ col.value }}
-            # </q-td>
+
             self.git_table.add_slot('body', r'''
                 <q-tr :props="props">
                     <q-td auto-width>
@@ -174,34 +195,61 @@ class repo_viewer():
                         <q-badge  :class="(props.row.expectedBranch==props.row.activeBranch)?'bg-white text-secondary':
                                             'bg-warning text-white font-bold'">
                             {{ props.row.activeBranch }}
+                            <q-tooltip>Expected branch: {{ props.row.expectedBranch }}</q-tooltip>
                         </q-badge>
                     </q-td>
-                    <q-td key="status" :props="props">
-                        <q-badge  :class="(props.row.status=='Up-to-Date')?'bg-white text-secondary':
+                    <q-td key="localStatus" :props="props">
+                        <q-badge  :class="(props.row.localStatus==false)?'bg-green text-secondary':
                                             'bg-negative text-white font-bold'">
-                            {{ props.row.status }}
+                            {{ }}
+                        </q-badge>
+                    </q-td>
+                    <q-td key="remoteStatus" :props="props">
+                        <q-badge  :class="(props.row.remoteStatus=='Up-to-Date')?'bg-white text-secondary':
+                                            'bg-negative text-white font-bold'">
+                            {{ props.row.remoteStatus }}
                         </q-badge>
                     </q-td>
                     <q-td key="actions" :props="props">
-                        <q-btn @click="$parent.$emit('refresh', props)" icon="refresh" flat dense color='primary'/>
-                        <q-btn @click="$parent.$emit('open', props)" icon="folder_open" flat dense color='primary'/>
-                        <q-btn @click="$parent.$emit('bash', props)" icon="web_asset" flat dense color='primary'/>
-                        <q-btn @click="$parent.$emit('github', props)" icon="public" flat dense color='primary'/>
+                        <q-btn @click="$parent.$emit('refresh', props)" icon="refresh" flat dense color='primary'>
+                            <q-tooltip>Fetch from remote and update row</q-tooltip>
+                        </q-btn>
+                        <q-btn @click="$parent.$emit('pull', props)" icon="download" flat dense color='primary'>
+                            <q-tooltip>Pull from remote</q-tooltip>
+                        </q-btn>
+                        <q-btn @click="$parent.$emit('push', props)" icon="publish" flat dense color='primary'>
+                            <q-tooltip>Push to remote</q-tooltip>
+                        </q-btn>
+                    </q-td>
+                    <q-td key="actions2" :props="props">
+                        <q-btn @click="$parent.$emit('open', props)" icon="folder_open" flat dense color='primary'>
+                            <q-tooltip>Open Repo in explorer</q-tooltip>
+                        </q-btn>
+                        <q-btn @click="$parent.$emit('bash', props)" icon="web_asset" flat dense color='primary'>
+                            <q-tooltip>Open Repo in bash</q-tooltip>
+                        </q-btn>
+                        <q-btn @click="$parent.$emit('github', props)" icon="public" flat dense color='primary'>
+                            <q-tooltip>Open Repo in Github</q-tooltip>
+                        </q-btn>
                     </q-td>
                 </q-tr>
                 <q-tr v-show="props.expand" :props="props">
                     <q-td auto-width />
                     <q-td colspan="100%">
-                        <div class="text-left">Remote Url: {{ props.row.url }}</div>
-                        <div class="text-left">Active Branch: {{ props.row.activeBranch }} ({{ props.row.expectedBranch }})</div>
+                        <div class="text-left"><b>Remote Url:</b> <a :href="props.row.url">{{ props.row.url }}</a></div>
+                        <div class="text-left"><b>Active Branch / Expected Branch:</b> {{ props.row.activeBranch }} / {{ props.row.expectedBranch }}</div>
+                        <div class="text-left"><b>Status:</b> {{ props.row.status }}</div>
                     </q-td>
                 </q-tr>
             ''')
 
             self.git_table.on('refresh', lambda e: self.refresh_row(e))
-            self.git_table.on('open', lambda e: self.open_folder(e))
-            self.git_table.on('bash', lambda e: self.open_git_bash(e))
-            self.git_table.on('github', lambda e: self.open_github(e))
+            self.git_table.on('pull', lambda e: self.pull_row(e))
+            self.git_table.on('push', lambda e: self.push_row(e))
+            
+            self.git_table.on('open', lambda e: GitRepo(e.args['row']['path']).openExplorer())
+            self.git_table.on('bash', lambda e: GitRepo(e.args['row']['path']).openBash())
+            self.git_table.on('github', lambda e: GitRepo(e.args['row']['path']).openGithub())
             
             self.git_table.rows = self.__get_git_table_rows()
             
@@ -209,14 +257,33 @@ class repo_viewer():
     def refresh_row(self, e: events.GenericEventArguments) -> None:
         print(e.args['row']['path'])
     
+    
+    async def pull_row(self, e: events.GenericEventArguments) -> None:
+
+        n = ui.notification(message='Pull from remote', spinner=True, timeout=None)
+        await asyncio.sleep(0.1)
+        #result = self.__pull_repo(e.args['row']['path'])
+        result = GitRepo(e.args['row']['path']).git.pull()
+        n.message = 'Done!'
+        n.spinner = False
+        await asyncio.sleep(1)
+        n.dismiss()
+        self.__log_message(f"{e.args['row']['path']} pulled: {result}")
+
+
+    async def push_row(self, e: events.GenericEventArguments) -> None:
+        n = ui.notification(message='Push to remote', spinner=True, timeout=None)
+        await asyncio.sleep(0.1)
+        result = GitRepo(e.args['row']['path']).git.push()
+        n.message = 'Done!'
+        n.spinner = False
+        await asyncio.sleep(1)
+        n.dismiss()
+        if result:
+            self.__log_message(f"{e.args['row']['path']} pushed: {result}")
+        else:
+            self.__log_message(f"{e.args['row']['path']}: Nothing to push!")
             
-    def open_folder(self, e: events.GenericEventArguments) -> None:
-        GitRepo(e.args['row']['path']).openExplorer()
-
-
-    def open_git_bash(self, e: events.GenericEventArguments) -> None: 
-        GitRepo(e.args['row']['path']).openBash()
-
-
-    def open_github(self, e: events.GenericEventArguments) -> None:
-        GitRepo(e.args['row']['path']).openGithub()
+            
+    def __log_message(self, message:str) -> None:
+        self.log.push(f"[{datetime.now().strftime('%X.%f')[0:8]}] {message}")
