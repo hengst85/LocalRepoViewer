@@ -13,6 +13,8 @@ class repo_viewer():
     def __init__(self, filePath: str = ''):
         self._filePath = Path(filePath)
         self._config = None
+        self._git_table_rows = []
+        self._svn_table_rows = []
         
         # load config file
         self._load_config()
@@ -42,43 +44,57 @@ class repo_viewer():
     def config_file_handler(self) -> None:
         # File selection
         with ui.row().classes('items-center w-full'):
-            selectedFile = ui.select([self._filePath.as_posix()],value=self._filePath.as_posix(), label='Configuration File').on('click', lambda: os.startfile(self._filePath))
-            selectedFile.props('readonly borderless hide-dropdown-icon label-color="primary"')
+            selectedFile = ui.select([self._filePath.as_posix()],value=self._filePath.as_posix(), label='Configuration File')
+            selectedFile.props('readonly disable borderless hide-dropdown-icon label-color="primary"')
             selectedFile.style('min-width: 350px;')
             
-            ui.button(color='primary', on_click=lambda: self.update(), icon='refresh').props('flat dense')
-                    
+            with ui.button(color='primary', on_click=lambda: os.startfile(self._filePath), icon='open_in_new').props('flat dense'):
+                ui.tooltip('Open config file')
+            with ui.button(color='primary', on_click=lambda: self.update(), icon='refresh').props('flat dense'):
+                ui.tooltip('Reload configuration file')
 
     def update(self, filePath:str) -> None:
         pass
 
-    def __get_git_table_rows(self) -> list:
+    def __get_git_table_rows(self):
         self.__fetch_repos_parallel([r['Path'] for r in self._config['git_repo']])
-        row = []        
         
         for r in self._config['git_repo']:
-            repo = GitRepo(r['Path'])
-            # if repo.checkLocalRevExists(repo.getRemoteHeadRev(repo.active_branch.name)):
-            #     status = "Fetch Required"
-            # el
-            if repo.is_dirty():
-                status = "Local changes"
+            if Path(r['Path']).is_dir() and Path(r['Path']).joinpath('.git').is_dir():
+                repo = GitRepo(r['Path'])
+                # if repo.checkLocalRevExists(repo.getRemoteHeadRev(repo.active_branch.name)):
+                #     status = "Fetch Required"
+                # el
+                if repo.is_dirty():
+                    status = "Local changes"
+                else:
+                    status = "Up-to-Date"
+                #repo.git.status('-s')
+                    
+                self._git_table_rows.append({
+                    'path': r['Path'],
+                    'url': r['Url'],
+                    'usedUrl': next(repo.remotes.origin.urls),
+                    'expectedBranch': r['Branch'],
+                    'activeBranch': repo.active_branch.name,
+                    'status': repo.git.status('-s'),
+                    'localStatus': repo.is_dirty(untracked_files=True),
+                    'remoteStatus': status,
+                    'isRepo': True
+                    })
             else:
-                status = "Up-to-Date"
-            #repo.git.status('-s')
-                
-            row.append({
-                'path': r['Path'],
-                'url': next(repo.remotes.origin.urls),
-                'expectedBranch': r['Branch'],
-                'activeBranch': repo.active_branch.name,
-                'status': repo.git.status('-s'),
-                'localStatus': repo.is_dirty(untracked_files=True),
-                'remoteStatus': status
-                })
-    
-        return row
-    
+                self._git_table_rows.append({
+                    'path': r['Path'],
+                    'url': r['Url'],
+                    'usedUrl': "",
+                    'expectedBranch': r['Branch'],
+                    'activeBranch': "",
+                    'status': "",
+                    'localStatus': True,
+                    'remoteStatus': "",
+                    'isRepo': False
+                    })   
+            
     
     def __update_git_table(self) -> None:
         pass
@@ -119,8 +135,14 @@ class repo_viewer():
             },
             {
                 'name': 'url', 
-                'label': 'Remote URl', 
+                'label': '', 
                 'field': 'url', 
+                'sortable': False
+            },
+            {
+                'name': 'usedUrl', 
+                'label': 'Remote URl', 
+                'field': 'usedUrl', 
                 'sortable': False
             },
             {
@@ -152,6 +174,12 @@ class repo_viewer():
                 'label': 'Remote Status', 
                 'field': 'remoteStatus',
                 'sortable': True
+            },
+            {
+                'name': 'isRepo',  
+                'label': '', 
+                'field': 'isRepo',
+                'sortable': False
             },
             {
                 'name': 'actions', 
@@ -199,10 +227,12 @@ class repo_viewer():
                         </q-badge>
                     </q-td>
                     <q-td key="localStatus" :props="props">
-                        <q-badge  :class="(props.row.localStatus==false)?'bg-green text-secondary':
-                                            'bg-negative text-white font-bold'">
-                            {{ }}
-                        </q-badge>
+                        <q-icon name="check_circle" color="green" v-if="props.row.localStatus==false" size="sm">
+                            <q-tooltip>Local repo is clean!</q-tooltip>
+                        </q-icon>
+                        <q-icon name="error" color="negative" v-else-if="props.row.localStatus==true" size="sm">
+                            <q-tooltip>Local repo is dirty!</q-tooltip>
+                        </q-icon>
                     </q-td>
                     <q-td key="remoteStatus" :props="props">
                         <q-badge  :class="(props.row.remoteStatus=='Up-to-Date')?'bg-white text-secondary':
@@ -251,7 +281,8 @@ class repo_viewer():
             self.git_table.on('bash', lambda e: GitRepo(e.args['row']['path']).openBash())
             self.git_table.on('github', lambda e: GitRepo(e.args['row']['path']).openGithub())
             
-            self.git_table.rows = self.__get_git_table_rows()
+            self.__get_git_table_rows()
+            self.git_table.rows = self._git_table_rows
             
             
     def refresh_row(self, e: events.GenericEventArguments) -> None:

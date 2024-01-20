@@ -2,13 +2,16 @@
 Path = "C:/HIL/ApplicationArea/EEVMerkenich/Modeling/ModelDevelopment/_ECUs"
 Url = "git@github.com:ford-innersource/eet.hil.EcuModels.git"
 Branch = "bulu"
-SyncTime = 60
 
 [[git_repo]]
 Path = "C:/HIL/ApplicationArea/EEVMerkenich/Modeling/ApplicationBuild/Components"
 Url = "git@github.com:ford-innersource/eet.hil.ComponentsLibrary.git"
 Branch = "main"
-SyncTime = 60
+
+[[git_repo]]
+Path = "C:/HIL/ApplicationArea/EEVMerkenich/Modeling/ApplicationBuild/Components2"
+Url = "git@github.com:ford-innersource/eet.hil.ComponentsLibrary.git"
+Branch = "main"
 
 [[svn_repo]]
 Name = "Bulu"
