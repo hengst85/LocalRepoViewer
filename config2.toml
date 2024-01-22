@@ -1,7 +1,7 @@
 [[git_repo]]
 Path = "C:/HIL/ApplicationArea/EEVMerkenich/Modeling/ModelDevelopment/_ECUs"
 Url = "git@github.com:ford-innersource/eet.hil.EcuModels.git"
-Branch = "bulu"
+Branch = "bulgagau"
 
 [[git_repo]]
 Path = "C:/HIL/ApplicationArea/EEVMerkenich/Modeling/ApplicationBuild/Components"
@@ -13,5 +13,3 @@ Path = "C:/HIL/ApplicationArea/EEVMerkenich/Modeling/ApplicationBuild/Components
 Url = "git@github.com:ford-innersource/eet.hil.ComponentsLibrary.git"
 Branch = "main"
 
-[[svn_repo]]
-Name = "Bulu"
