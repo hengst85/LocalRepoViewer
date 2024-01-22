@@ -1,8 +1,8 @@
 from nicegui import ui
 from repo_viewer import repo_viewer
 
-#CONFIGFILE = r'D:\Programmieren\Dashboard\LocalRepoViewer\config.tom'
-CONFIGFILE = r'C:\HIL\ApplicationArea\EEVMerkenich\Tools\Dashboard\LocalRepoViewer\config2.toml'
+CONFIGFILE = r'D:\Programmieren\Dashboard\LocalRepoViewer\config.toml'
+#CONFIGFILE = r'C:\HIL\ApplicationArea\EEVMerkenich\Tools\Dashboard\LocalRepoViewer\config2.toml'
 
 def main() -> None:
 

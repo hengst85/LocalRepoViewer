@@ -3,6 +3,7 @@ from pathlib import Path
 import tomli
 import os
 import subprocess
+import time
 import asyncio
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
@@ -177,7 +178,7 @@ class git_repo_table():
                 </q-tr>
             ''')
 
-            self.table.on('refresh', lambda e: self.refresh_row(e))
+            self.table.on('refresh', lambda e: self.update([e.args['row']]))
             self.table.on('pull', lambda e: self.pull_row(e))
             self.table.on('push', lambda e: self.push_row(e))
             
@@ -191,9 +192,8 @@ class git_repo_table():
     
     
     def update(self, repos: list = []) -> None:
-        for r in repos:
-            self._log.info_message(r['Path'])
-            
+        n = ui.notification(message='Update table', spinner=True, timeout=None)
+         
         self.__fetch_repos_parallel([r['Path'] for r in repos])
         
         for r in repos:
@@ -241,7 +241,9 @@ class git_repo_table():
                 self._rows.append(row)
                 
         self.table.rows = self._rows
-    
+        n.dismiss()
+
+        
     
     def __column_definition(self) -> list:
         return [
@@ -319,9 +321,12 @@ class git_repo_table():
     def __pull_repo(repoPath: str) -> None:
         GitRepo(repoPath).git.pull()
 
-    @classmethod
-    def __fetch_repo(repoPath: str) -> None:
+
+    #@classmethod
+    def __fetch_repo(self, repoPath: str) -> None:
+        self._log.info_message(f"Fetch {repoPath}!")
         GitRepo(repoPath).git.fetch()
+    
 
     def __pull_repos_parallel(self, repoPaths: list, max_workers: int = 10):
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
