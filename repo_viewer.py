@@ -140,10 +140,19 @@ class git_repo_table():
                         </q-icon>
                     </q-td>
                     <q-td key="remoteStatus" :props="props">
-                        <q-badge  :class="(props.row.remoteStatus=='Up-to-Date')?'bg-white text-secondary':
-                                            'bg-negative text-white font-bold'">
-                            {{ props.row.remoteStatus }}
-                        </q-badge>
+                        {{ props.row.remoteStatus }}
+                        <q-icon name="check_circle" color="green" v-if="props.row.remoteStatus=='Up-to-Date'" size="sm">
+                            <q-tooltip>Local repo is up-to-date!</q-tooltip>
+                        </q-icon>
+                        <q-icon name="warning" color="warning" v-if="props.row.remoteStatus=='Pull required'" size="sm">
+                            <q-tooltip>Pull is required!</q-tooltip>
+                        </q-icon>
+                        <q-icon name="info" color="warning" v-if="props.row.remoteStatus=='Push your data'" size="sm">
+                            <q-tooltip>Push your data!</q-tooltip>
+                        </q-icon>
+                        <q-icon name="warning" color="warning" v-if="props.row.remoteStatus=='Pull and Push'" size="sm">
+                            <q-tooltip>Pull is required!</q-tooltip>
+                        </q-icon>
                     </q-td>
                     <q-td key="actions" :props="props">
                         <q-btn @click="$parent.$emit('refresh', props)" icon="refresh" flat dense color='primary'>
@@ -192,22 +201,26 @@ class git_repo_table():
     
     
     def update(self, repos: list = []) -> None:
-        n = ui.notification(message='Update table', spinner=True, timeout=None)
+        #n = ui.notification(message='Update table', spinner=True, timeout=None)
          
         self.__fetch_repos_parallel([r['Path'] for r in repos])
         
         for r in repos:
             if Path(r['Path']).is_dir() and Path(r['Path']).joinpath('.git').is_dir():
                 repo = GitRepo(r['Path'])
-                # if repo.checkLocalRevExists(repo.getRemoteHeadRev(repo.active_branch.name)):
-                #     status = "Fetch Required"
-                # el
-                if repo.is_dirty():
-                    status = "Local changes"
+
+                repoStatus = repo.git.status()
+                if 'Your branch is up to date' in repoStatus:
+                    repoStatus = "Up-to-Date"
+                elif 'Your branch is ahead' in repoStatus:
+                    repoStatus = 'Push your data' # push required
+                elif 'Your branch is behind' in repoStatus:
+                    repoStatus = 'Pull required'
+                elif 'have diverged' in repoStatus:
+                    repoStatus = 'Pull and Push'
                 else:
-                    status = "Up-to-Date"
-                #repo.git.status('-s')
-                    
+                    repoStatus = "Up-to-Date"
+   
                 row = {
                     'path': r['Path'],
                     'url': r['Url'],
@@ -216,7 +229,7 @@ class git_repo_table():
                     'activeBranch': repo.active_branch.name,
                     'status': repo.git.status('-s'),
                     'localStatus': repo.is_dirty(untracked_files=True),
-                    'remoteStatus': status,
+                    'remoteStatus': repoStatus,
                     'isRepo': True
                     }
             else:
@@ -241,7 +254,7 @@ class git_repo_table():
                 self._rows.append(row)
                 
         self.table.rows = self._rows
-        n.dismiss()
+        #n.dismiss()
 
         
     
