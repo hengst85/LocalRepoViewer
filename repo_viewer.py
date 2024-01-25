@@ -14,8 +14,6 @@ class repo_viewer():
     def __init__(self, filePath: str = ''):
         self._filePath = Path(filePath)
         self._config = None
-        self._git_table_rows = []
-        self._svn_table_rows = []
         
         # load config file
         self._load_config()
@@ -83,11 +81,15 @@ class log_viewer():
     def __init__(self,max_lines: int = 20) -> None:
         self.log = ui.log(max_lines=max_lines).classes('w-full h-40')
         
+        
     def info_message(self, message:str) -> None:
         self.log.push(f"[{datetime.now().strftime('%X.%f')[0:8]}] [Info] {message}")
+        self.log.update()
+        
         
     def warning_message(self, message:str) -> None:
         self.log.push(f"[{datetime.now().strftime('%X.%f')[0:8]}] [Warning] {message}")
+        self.log.update()
 
 
 class git_repo_table():
@@ -95,7 +97,6 @@ class git_repo_table():
         self._log = None
         self._columnDefs = self.__column_definition()
         self._visibleColumns = {'path', 'activeBranch', 'localStatus', 'remoteStatus', 'actions', 'actions2'}
-        self._rows = []
             
         with ui.table(columns=self._columnDefs, rows=[], row_key='path').classes('w-full') as self.table:
             self.table._props['columns'] = [column for column in self._columnDefs if column['name'] in self._visibleColumns]
@@ -187,7 +188,7 @@ class git_repo_table():
                 </q-tr>
             ''')
 
-            self.table.on('refresh', lambda e: self.update([e.args['row']]))
+            self.table.on('refresh', lambda e: self.refresh_row(e))
             self.table.on('pull', lambda e: self.pull_row(e))
             self.table.on('push', lambda e: self.push_row(e))
             
@@ -201,26 +202,23 @@ class git_repo_table():
     
     
     def update(self, repos: list = []) -> None:
-        #n = ui.notification(message='Update table', spinner=True, timeout=None)
-         
+        # Fetch given repos
+        self._log.info_message("Update Git repository table...")
         self.__fetch_repos_parallel([r['Path'] for r in repos])
-        
+
+        # Update table
+        self._update_table(repos)
+        self._log.info_message("...done!")
+
+
+    def _update_table(self, repos: list = []) -> None:
+        _rows = []
         for r in repos:
             if Path(r['Path']).is_dir() and Path(r['Path']).joinpath('.git').is_dir():
                 repo = GitRepo(r['Path'])
 
-                repoStatus = repo.git.status()
-                if 'Your branch is up to date' in repoStatus:
-                    repoStatus = "Up-to-Date"
-                elif 'Your branch is ahead' in repoStatus:
-                    repoStatus = 'Push your data' # push required
-                elif 'Your branch is behind' in repoStatus:
-                    repoStatus = 'Pull required'
-                elif 'have diverged' in repoStatus:
-                    repoStatus = 'Pull and Push'
-                else:
-                    repoStatus = "Up-to-Date"
-   
+                repoStatus = self.__repo_status(r['Path'])
+
                 row = {
                     'path': r['Path'],
                     'url': r['Url'],
@@ -245,18 +243,17 @@ class git_repo_table():
                     'isRepo': False
                     }
                 
-            if row['path'] in [r['path'] for r in self._rows]:
-                for dictionary in self._rows:
+            if row['path'] in [r['path'] for r in self.table.rows]:
+                for dictionary in self.table.rows:
                     if dictionary['path'] == row['path']:
                         dictionary.update(row)
                         break
             else:
-                self._rows.append(row)
-                
-        self.table.rows = self._rows
-        #n.dismiss()
-
+                    _rows.append(row)
         
+        # Update table
+        self.table.update_rows(_rows)
+
     
     def __column_definition(self) -> list:
         return [
@@ -330,14 +327,30 @@ class git_repo_table():
         ]
 
     
+    @staticmethod
+    def __repo_status(repoPath: str) -> str:
+        repoStatus = GitRepo(repoPath).git.status()
+        if 'Your branch is up to date' in repoStatus:
+            repoStatus = "Up-to-Date"
+        elif 'Your branch is ahead' in repoStatus:
+            repoStatus = 'Push your data'
+        elif 'Your branch is behind' in repoStatus:
+            repoStatus = 'Pull required'
+        elif 'have diverged' in repoStatus:
+            repoStatus = 'Pull and Push'
+        else:
+            repoStatus = "Up-to-Date"
+        
+        return repoStatus
+    
+    
     @classmethod
     def __pull_repo(repoPath: str) -> None:
         GitRepo(repoPath).git.pull()
 
 
-    #@classmethod
-    def __fetch_repo(self, repoPath: str) -> None:
-        self._log.info_message(f"Fetch {repoPath}!")
+    @classmethod
+    def __fetch_repo(repoPath: str) -> None:
         GitRepo(repoPath).git.fetch()
     
 
@@ -351,15 +364,41 @@ class git_repo_table():
             executor.map(self.__fetch_repo, repoPaths)
     
     
-    def refresh_row(self, e: events.GenericEventArguments) -> None:
-        print(e.args['row']['path'])
+    def __update_row_status(self, repoPath: str) -> None:
+        repoStatus = self.__repo_status(repoPath)
+        repo = GitRepo(repoPath)
+        
+        update = {
+            'path': repoPath,
+            'status': repo.git.status('-s'),
+            'localStatus': repo.is_dirty(untracked_files=True),
+            'remoteStatus': repoStatus,
+            }
+
+        for row in self.table.rows:
+            if row['path'] == repoPath:
+                row.update(update)
+    
+        self.table.update()
+    
+    
+    async def refresh_row(self, e: events.GenericEventArguments) -> None:
+        n = ui.notification(message='Fetch from remote', spinner=True, timeout=None)
+        await asyncio.sleep(0.1)
+        GitRepo(e.args['row']['path']).git.fetch()
+        self.__update_row_status(e.args['row']['path'])
+        n.message = 'Done!'
+        n.spinner = False
+        await asyncio.sleep(1)
+        n.dismiss()
+        self._log.info_message(f"{e.args['row']['path']} fetched!")
     
     
     async def pull_row(self, e: events.GenericEventArguments) -> None:
         n = ui.notification(message='Pull from remote', spinner=True, timeout=None)
         await asyncio.sleep(0.1)
-        #result = self.__pull_repo(e.args['row']['path'])
         result = GitRepo(e.args['row']['path']).git.pull()
+        self.__update_row_status(e.args['row']['path'])
         n.message = 'Done!'
         n.spinner = False
         await asyncio.sleep(1)
@@ -371,6 +410,7 @@ class git_repo_table():
         n = ui.notification(message='Push to remote', spinner=True, timeout=None)
         await asyncio.sleep(0.1)
         result = GitRepo(e.args['row']['path']).git.push()
+        self.__update_row_status(e.args['row']['path'])
         n.message = 'Done!'
         n.spinner = False
         await asyncio.sleep(1)
