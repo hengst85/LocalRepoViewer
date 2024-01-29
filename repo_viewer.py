@@ -1,4 +1,4 @@
-from nicegui import ui, events
+from nicegui import ui, run, events
 from pathlib import Path
 import tomli
 import os
@@ -9,6 +9,24 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
 from CM.Git import ExtendedGitRepo as GitRepo
+
+def fetch_repo(repoPath: str) -> None:
+    GitRepo(repoPath).git.fetch()
+
+def pull_repo(repoPath: str) -> str:
+    return GitRepo(repoPath).git.pull()
+    
+def push_repo(repoPath: str) -> str:
+    return GitRepo(repoPath).git.push()
+
+def fetch_repos_parallel(repoPaths: list, max_workers: int = 10):
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:    
+         executor.map(fetch_repo, repoPaths)
+        
+def pull_repos_parallel(repoPaths: list, max_workers: int = 10):
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:    
+         executor.map(pull_repo, repoPaths)
+         
 
 class repo_viewer():
     def __init__(self, filePath: str = ''):
@@ -39,7 +57,7 @@ class repo_viewer():
         # Add logger to table and update tables
         if self.git_repo_table:
             self.git_repo_table.add_logger(self.log)
-            self.git_repo_table.update(self._config['git_repo'])
+            self.git_repo_table.init_data(self._config['git_repo'])
         if self.svn_repo_table:
             self.svn_repo_table.add_logger(self.log)
             self.svn_repo_table.update(self._config['svn_repo'])
@@ -66,13 +84,13 @@ class repo_viewer():
                 ui.tooltip('Reload configuration file')
 
 
-    def update(self) -> None:
+    async def update(self) -> None:
         # load config file
         self._load_config()
         
         # Update tables
         if self.git_repo_table:
-            self.git_repo_table.update(self._config['git_repo'])
+            await self.git_repo_table.update(self._config['git_repo'])
         if self.svn_repo_table:
             self.svn_repo_table.update(self._config['svn_repo'])
 
@@ -201,15 +219,31 @@ class git_repo_table():
         self._log = logger
     
     
-    def update(self, repos: list = []) -> None:
+    def init_data(self, repos: list = []) -> None:
         # Fetch given repos
-        self._log.info_message("Update Git repository table...")
-        self.__fetch_repos_parallel([r['Path'] for r in repos])
+        self._log.info_message("Initialize Git repository table...")
+        fetch_repos_parallel([r['Path'] for r in repos])
 
         # Update table
         self._update_table(repos)
         self._log.info_message("...done!")
-
+    
+    
+    async def update(self, repos: list = []) -> None:
+        
+        self._log.info_message("Update Git repository table...")
+        n = ui.notification(message='Fetch from remote', spinner=True, timeout=None)
+        await asyncio.sleep(0.1)
+        await run.io_bound(fetch_repos_parallel, [r['Path'] for r in repos])
+        n.message = 'Update table!'
+        await asyncio.sleep(1)
+        self._update_table(repos)
+        n.message = 'Done!'
+        n.spinner = False
+        await asyncio.sleep(1)
+        n.dismiss()
+        self._log.info_message("...done!")
+        
 
     def _update_table(self, repos: list = []) -> None:
         _rows = []
@@ -243,13 +277,14 @@ class git_repo_table():
                     'isRepo': False
                     }
                 
-            if row['path'] in [r['path'] for r in self.table.rows]:
-                for dictionary in self.table.rows:
-                    if dictionary['path'] == row['path']:
-                        dictionary.update(row)
-                        break
-            else:
-                    _rows.append(row)
+            # if row['path'] in [r['path'] for r in self.table.rows]:
+            #     for dictionary in self.table.rows:
+            #         if dictionary['path'] == row['path']:
+            #             self._log.info_message(f"   Update {row['path']}")
+            #             dictionary.update(row)
+            #             break
+            # else:
+            _rows.append(row)
         
         # Update table
         self.table.update_rows(_rows)
@@ -342,27 +377,7 @@ class git_repo_table():
             repoStatus = "Up-to-Date"
         
         return repoStatus
-    
-    
-    @classmethod
-    def __pull_repo(repoPath: str) -> None:
-        GitRepo(repoPath).git.pull()
-
-
-    @classmethod
-    def __fetch_repo(repoPath: str) -> None:
-        GitRepo(repoPath).git.fetch()
-    
-
-    def __pull_repos_parallel(self, repoPaths: list, max_workers: int = 10):
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            executor.map(self.__pull_repo, repoPaths)
-            
-        
-    def __fetch_repos_parallel(self, repoPaths: list, max_workers: int = 10):
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            executor.map(self.__fetch_repo, repoPaths)
-    
+  
     
     def __update_row_status(self, repoPath: str) -> None:
         repoStatus = self.__repo_status(repoPath)
@@ -383,42 +398,45 @@ class git_repo_table():
     
     
     async def refresh_row(self, e: events.GenericEventArguments) -> None:
+        self._log.info_message(f"Fetch {e.args['row']['path']} ...")
         n = ui.notification(message='Fetch from remote', spinner=True, timeout=None)
         await asyncio.sleep(0.1)
-        GitRepo(e.args['row']['path']).git.fetch()
+        await run.io_bound(fetch_repo, e.args['row']['path'])
         self.__update_row_status(e.args['row']['path'])
         n.message = 'Done!'
         n.spinner = False
         await asyncio.sleep(1)
         n.dismiss()
-        self._log.info_message(f"{e.args['row']['path']} fetched!")
+        self._log.info_message("...done!")
     
     
     async def pull_row(self, e: events.GenericEventArguments) -> None:
+        self._log.info_message(f"Pull {e.args['row']['path']} ...")
         n = ui.notification(message='Pull from remote', spinner=True, timeout=None)
         await asyncio.sleep(0.1)
-        result = GitRepo(e.args['row']['path']).git.pull()
+        result = await run.io_bound(pull_repo, e.args['row']['path'])
         self.__update_row_status(e.args['row']['path'])
         n.message = 'Done!'
         n.spinner = False
         await asyncio.sleep(1)
         n.dismiss()
-        self._log.info_message(f"{e.args['row']['path']} pulled: {result}")
+        self._log.info_message(f"...done: {result}")
 
 
     async def push_row(self, e: events.GenericEventArguments) -> None:
+        self._log.info_message(f"Push {e.args['row']['path']} ...")
         n = ui.notification(message='Push to remote', spinner=True, timeout=None)
         await asyncio.sleep(0.1)
-        result = GitRepo(e.args['row']['path']).git.push()
+        result = await run.io_bound(push_repo, e.args['row']['path'])
         self.__update_row_status(e.args['row']['path'])
         n.message = 'Done!'
         n.spinner = False
         await asyncio.sleep(1)
         n.dismiss()
         if result:
-            self._log.info_message(f"{e.args['row']['path']} pushed: {result}")
+            self._log.info_message(f"...done: {result}")
         else:
-            self._log.info_message(f"{e.args['row']['path']}: Nothing to push!")
+            self._log.info_message("...done: Nothing to push!")
             
 
 class svn_repo_table():
