@@ -240,11 +240,17 @@ class git_repo_table():
                         <q-btn @click="$parent.$emit('refresh', props)" icon="refresh" flat dense color='primary'>
                             <q-tooltip>Fetch from remote and update row</q-tooltip>
                         </q-btn>
-                        <q-btn @click="$parent.$emit('pull', props)" icon="download" flat dense color='primary'>
+                        <q-btn @click="$parent.$emit('pull', props)" icon="download" v-if="props.row.localStatus==false" flat dense color='primary'>
                             <q-tooltip>Pull from remote</q-tooltip>
                         </q-btn>
-                        <q-btn @click="$parent.$emit('push', props)" icon="publish" flat dense color='primary'>
+                        <q-btn @click="$parent.$emit('pull', props)" icon="download" v-else-if="props.row.localStatus==true" flat dense disable color='primary'>
+                            <q-tooltip>Local repo is dirty</q-tooltip>
+                        </q-btn>
+                        <q-btn @click="$parent.$emit('push', props)" icon="publish" v-if="props.row.remoteStatus=='Push your data'" flat dense color='primary'>
                             <q-tooltip>Push to remote</q-tooltip>
+                        </q-btn>
+                        <q-btn @click="$parent.$emit('push', props)" icon="publish" v-else-if="props.row.remoteStatus!='Push your data'" disable flat dense color='primary'>
+                            <q-tooltip>Nothing to push</q-tooltip>
                         </q-btn>
                     </q-td>
                     <q-td key="actions2" :props="props">
@@ -311,10 +317,10 @@ class git_repo_table():
 
 
     async def _pull_repos(self, repos: list = []) -> None:
-        self._log.info_message("Pull all Git repositories...")
+        self._log.info_message("Pull all clean Git repositories...")
         n = ui.notification(message='Pull from remote', spinner=True, timeout=None)
         await asyncio.sleep(0.1)
-        await run.io_bound(pull_repos_parallel, [r['Path'] for r in repos])
+        await run.io_bound(pull_repos_parallel, [r['Path'] for r in repos if r['localStatus'] is False])
         n.message = 'Update table!'
         results = await run.cpu_bound(get_repo_status_parallel, repos)
         await asyncio.sleep(0.1)
@@ -330,7 +336,7 @@ class git_repo_table():
         self._log.info_message("Push all Git repositories...")
         n = ui.notification(message='Push to remote', spinner=True, timeout=None)
         await asyncio.sleep(0.1)
-        await run.io_bound(push_repos_parallel, [r['Path'] for r in repos])
+        await run.io_bound(push_repos_parallel, [r['Path'] for r in repos if r['remoteStatus'] == 'Push your data'])
         n.message = 'Update table!'
         results = await run.cpu_bound(get_repo_status_parallel, repos)
         await asyncio.sleep(0.1)
