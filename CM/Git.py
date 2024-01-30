@@ -271,3 +271,15 @@ class ExtendedGitRepo(Repo):
     def openGithub(self) -> None:
         os.chdir(self.working_dir)
         subprocess.run(['gh','repo', 'view', '-w'])
+        
+    def openFileInGithub(self, filepath: str) -> None:
+        # https://cli.github.com/manual/gh_browse
+        os.chdir(self.working_dir)
+        subprocess.run(['gh','browse', filepath, '--branch', self.active_branch.name])
+        
+    def getLastCommitFromGithub(self) -> None:
+        # https://cli.github.com/manual/gh_browse
+        # https://stackoverflow.com/questions/69099079/how-to-get-github-latest-commit-url-using-cli-with-respect-to-current-branch
+        os.chdir(self.working_dir)
+        subprocess.run(['gh','browse', '$(git rev-parse HEAD)', '-n'])
+        
