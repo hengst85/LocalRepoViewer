@@ -17,6 +17,9 @@ def pull_repo(repoPath: str) -> str:
 def push_repo(repoPath: str) -> str:
     return GitRepo(repoPath).git.push()
 
+def clone_repo(repoPath: str) -> None:
+    print('Not yet implemented!')
+
 def fetch_repos_parallel(repoPaths: list, max_workers: int = 10) -> None:
     with ThreadPoolExecutor(max_workers=max_workers) as executor:    
         executor.map(fetch_repo, repoPaths)
@@ -69,7 +72,7 @@ def get_repo_status(r: dict) -> dict:
             'Url': r['Url'],
             'usedUrl': "",
             'Branch': r['Branch'],
-            'activeBranch': "",
+            'activeBranch': "-",
             'status': "",
             'localStatus': True,
             'remoteStatus': "",
@@ -207,13 +210,14 @@ class git_repo_table():
                     <q-td key="Path" :props="props">
                         {{ props.row.Path }}
                     </q-td>
-                    <q-td key="activeBranch" :props="props">
+                    <q-td key="activeBranch" :props="props" v-if="props.row.isRepo==true">
                         <q-icon name="warning" color="warning" v-if="props.row.Branch!=props.row.activeBranch" size="sm">
                             <q-tooltip>Expected branch: {{ props.row.Branch }}</q-tooltip>
                         </q-icon>
                         {{ props.row.activeBranch }}
                     </q-td>
-                    <q-td key="localStatus" :props="props">
+                    <q-td key="activeBranch" :props="props" v-if="props.row.isRepo==false"/>
+                    <q-td key="localStatus" :props="props" v-if="props.row.isRepo==true">
                         <q-icon name="check_circle" color="green" v-if="props.row.localStatus==false" size="sm">
                             <q-tooltip>Local repo is clean!</q-tooltip>
                         </q-icon>
@@ -221,7 +225,12 @@ class git_repo_table():
                             <q-tooltip>Local repo is dirty!</q-tooltip>
                         </q-icon>
                     </q-td>
-                    <q-td key="remoteStatus" :props="props">
+                    <q-td key="localStatus" :props="props" v-if="props.row.isRepo==false">
+                        <q-icon name="warning" color="warning" size="sm">
+                            <q-tooltip>Folder is not a git repository</q-tooltip>
+                        </q-icon>
+                    </q-td>
+                    <q-td key="remoteStatus" :props="props" v-if="props.row.isRepo==true">
                         {{ props.row.remoteStatus }}
                         <q-icon name="check_circle" color="green" v-if="props.row.remoteStatus=='Up-to-Date'" size="sm">
                             <q-tooltip>Local repo is up-to-date!</q-tooltip>
@@ -236,7 +245,8 @@ class git_repo_table():
                             <q-tooltip>Pull is required!</q-tooltip>
                         </q-icon>
                     </q-td>
-                    <q-td key="actions" :props="props">
+                    <q-td key="remoteStatus" :props="props" v-if="props.row.isRepo==false"/>
+                    <q-td key="actions" :props="props" v-if="props.row.isRepo==true">
                         <q-btn @click="$parent.$emit('refresh', props)" icon="refresh" flat dense color='primary'>
                             <q-tooltip>Fetch from remote and update row</q-tooltip>
                         </q-btn>
@@ -253,7 +263,12 @@ class git_repo_table():
                             <q-tooltip>Nothing to push</q-tooltip>
                         </q-btn>
                     </q-td>
-                    <q-td key="actions2" :props="props">
+                    <q-td key="actions" :props="props" v-if="props.row.isRepo==false">
+                        <q-btn @click="$parent.$emit('clone', props)" icon="browser_updated" flat dense color='primary'>
+                            <q-tooltip>Clone repository</q-tooltip>
+                        </q-btn>
+                    </q-td>
+                    <q-td key="actions2" :props="props" v-if="props.row.isRepo==true">
                         <q-btn @click="$parent.$emit('open', props)" icon="folder_open" flat dense color='primary'>
                             <q-tooltip>Open Repo in explorer</q-tooltip>
                         </q-btn>
@@ -264,10 +279,11 @@ class git_repo_table():
                             <q-tooltip>Open Repo in Github</q-tooltip>
                         </q-btn>
                     </q-td>
+                    <q-td key="actions2" :props="props" v-if="props.row.isRepo==false"/>
                 </q-tr>
                 <q-tr v-show="props.expand" :props="props">
                     <q-td auto-width />
-                    <q-td colspan="100%">
+                    <q-td>
                         <div class="text-left"><b>Remote Url:</b> <a :href="props.row.Url">{{ props.row.Url }}</a></div>
                         <div class="text-left"><b>Active Branch / Expected Branch:</b> {{ props.row.activeBranch }} / {{ props.row.Branch }}</div>
                         <div class="text-left"><b>Status:</b> {{ props.row.status }}</div>
@@ -278,6 +294,7 @@ class git_repo_table():
             self.table.on('refresh', lambda e: self.refresh_row(e))
             self.table.on('pull', lambda e: self.pull_row(e))
             self.table.on('push', lambda e: self.push_row(e))
+            self.table.on('clone', lambda e: self.clone_row(e))
             
             self.table.on('open', lambda e: GitRepo(e.args['row']['Path']).openExplorer())
             self.table.on('bash', lambda e: GitRepo(e.args['row']['Path']).openBash())
@@ -320,6 +337,8 @@ class git_repo_table():
         self._log.info_message("Pull all clean Git repositories...")
         n = ui.notification(message='Pull from remote', spinner=True, timeout=None)
         await asyncio.sleep(0.1)
+        for repo in [r['Path'] for r in repos if r['localStatus'] is False]:
+            self._log.info_message(f"   ....{repo}")
         await run.io_bound(pull_repos_parallel, [r['Path'] for r in repos if r['localStatus'] is False])
         n.message = 'Update table!'
         results = await run.cpu_bound(get_repo_status_parallel, repos)
@@ -336,6 +355,8 @@ class git_repo_table():
         self._log.info_message("Push all Git repositories...")
         n = ui.notification(message='Push to remote', spinner=True, timeout=None)
         await asyncio.sleep(0.1)
+        for repo in [r['Path'] for r in repos if r['remoteStatus'] == 'Push your data']:
+            self._log.info_message(f"   ....{repo}")
         await run.io_bound(push_repos_parallel, [r['Path'] for r in repos if r['remoteStatus'] == 'Push your data'])
         n.message = 'Update table!'
         results = await run.cpu_bound(get_repo_status_parallel, repos)
@@ -409,36 +430,21 @@ class git_repo_table():
                 'name': 'actions', 
                 'label': '', 
                 'field': 'actions', 
-                'sortable': False
+                'sortable': False,
+                'style': 'min-width: 130px'
             },
             {
                 'name': 'actions2', 
                 'label': '', 
                 'field': 'actions2', 
-                'sortable': False
+                'sortable': False,
+                'style': 'min-width: 130px'
             }
         ]
 
     
-    @staticmethod
-    def __repo_status(repoPath: str) -> str:
-        repoStatus = GitRepo(repoPath).git.status()
-        if 'Your branch is up to date' in repoStatus:
-            repoStatus = "Up-to-Date"
-        elif 'Your branch is ahead' in repoStatus:
-            repoStatus = 'Push your data'
-        elif 'Your branch is behind' in repoStatus:
-            repoStatus = 'Pull required'
-        elif 'have diverged' in repoStatus:
-            repoStatus = 'Pull and Push'
-        else:
-            repoStatus = "Up-to-Date"
-        
-        return repoStatus
-
-    
     def __update_row_status(self, repoPath: str) -> None:
-        repoStatus = self.__repo_status(repoPath)
+        repoStatus = repo_status(repoPath)
         repo = GitRepo(repoPath)
         
         update = {
@@ -492,7 +498,20 @@ class git_repo_table():
         await asyncio.sleep(1)
         n.dismiss()
         self._log.info_message("...done!")
-            
+    
+    
+    async def clone_row(self, e: events.GenericEventArguments) -> None:
+        self._log.info_message(f"Clone to {e.args['row']['Path']} ...")
+        n = ui.notification(message='Clone from remote', spinner=True, timeout=None)
+        await asyncio.sleep(0.1)
+        await run.io_bound(clone_repo, e.args['row']['Path'])
+        self.__update_row_status(e.args['row']['Path'])
+        n.message = 'Done!'
+        n.spinner = False
+        await asyncio.sleep(1)
+        n.dismiss()
+        self._log.info_message("...done!")
+
 
 class svn_repo_table():
     def __init__(self) -> None:
