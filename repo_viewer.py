@@ -1,13 +1,21 @@
 from nicegui import ui, run, events
 from pathlib import Path
+from tkinter import Tk
 import tomli
 import os
 import asyncio
+import subprocess
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
 from CM.Git import ExtendedGitRepo as GitRepo
 from git import GitCommandError 
+
+
+def copy2clipboard(text: str) -> None:
+    cmd='echo '+text.strip()+'|clip'
+    subprocess.run(cmd, shell=True)
+    ui.notify('Copy to clipboard!',position='top')
 
 def fetch_repo(repoPath: str) -> None:
     GitRepo(repoPath).git.fetch()
@@ -242,6 +250,9 @@ class git_repo_table():
                     </q-td>
                     <q-td key="Path" :props="props">
                         {{ props.row.Path }}
+                        <q-btn @click="$parent.$emit('copyLocalPath', props)" icon="content_copy" flat dense color='primary' size="xs">
+                            <q-tooltip>Copy to clipboard</q-tooltip>
+                        </q-btn>
                     </q-td>
                     <q-td key="activeBranch" :props="props" v-if="props.row.isRepo==true">
                         <q-icon name="warning" color="warning" v-if="props.row.Branch!=props.row.activeBranch" size="sm">
@@ -314,13 +325,20 @@ class git_repo_table():
                 <q-tr v-show="props.expand" :props="props">
                     <q-td auto-width />
                     <q-td>
-                        <div class="text-left"><b>Remote Url:</b> <a :href="props.row.Url">{{ props.row.Url }}</a></div>
+                        <div class="text-left"><b>Remote Url:</b> {{ props.row.Url }}
+                            <q-btn @click="$parent.$emit('copyRemotePath', props)" icon="content_copy" flat dense color='primary' size="xs">
+                                <q-tooltip>Copy to clipboard</q-tooltip>
+                            </q-btn>
+                        </div>
                         <div class="text-left"><b>Active Branch / Expected Branch:</b> {{ props.row.activeBranch }} / {{ props.row.Branch }}</div>
                         <div class="text-left"><b>Status:</b> {{ props.row.status }}</div>
                     </q-td>
                 </q-tr>
             ''')
 
+            self.table.on('copyLocalPath', lambda e: copy2clipboard(e.args['row']['Path']))
+            self.table.on('copyRemotePath', lambda e: copy2clipboard(e.args['row']['Url']))
+            
             self.table.on('refresh', lambda e: self.update([e.args['row']]))
             self.table.on('pull', lambda e: self._pull_repos([e.args['row']]))
             self.table.on('push', lambda e: self._push_repos([e.args['row']]))
@@ -352,7 +370,7 @@ class git_repo_table():
             self._log.info_message(f"   ....{repo}")
         n = ui.notification(message='Fetch from remote', spinner=True, timeout=None)
         await asyncio.sleep(0.1)
-        await run.io_bound(fetch_repos_parallel, [r['Path'] for r in repos if r['isRepo']])
+        await run.io_bound(fetch_repos_parallel, [r['Path'] for r in repos])
         n.message = 'Update table!'
         results = await run.cpu_bound(get_repo_status_parallel, repos)
         await asyncio.sleep(0.1)
