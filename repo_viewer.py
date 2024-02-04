@@ -7,30 +7,63 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
 from CM.Git import ExtendedGitRepo as GitRepo
+from git import GitCommandError 
 
 def fetch_repo(repoPath: str) -> None:
     GitRepo(repoPath).git.fetch()
 
-def pull_repo(repoPath: str) -> str:
-    return GitRepo(repoPath).git.pull()
+def pull_repo(repoPath: str) -> list:
+    try:
+        return {
+            'Path': repoPath, 
+            'Error': False, 
+            'Message': GitRepo(repoPath).git.pull()}
+    except GitCommandError as e:
+        if e.stderr:
+            result = e.stderr.removeprefix("\n  stderr: 'error: ")
+            result = result.removesuffix("\nAborting'")
+        return {
+            'Path': repoPath, 
+            'Error': True, 
+            'Message': result}
     
 def push_repo(repoPath: str) -> str:
-    return GitRepo(repoPath).git.push()
-
+    try:
+        return {
+            'Path': repoPath, 
+            'Error': False, 
+            'Message': GitRepo(repoPath).git.push()}
+    except GitCommandError as e:
+        if e.stderr:
+            result = e.stderr.removeprefix("\n  stderr: 'error: ")
+        return {
+            'Path': repoPath, 
+            'Error': True, 
+            'Message': result}
+    
 def clone_repo(repoPath: str) -> None:
     print('Not yet implemented!')
 
 def fetch_repos_parallel(repoPaths: list, max_workers: int = 10) -> None:
     with ThreadPoolExecutor(max_workers=max_workers) as executor:    
         executor.map(fetch_repo, repoPaths)
-    
-def pull_repos_parallel(repoPaths: list, max_workers: int = 10) -> None:
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:    
-        executor.map(pull_repo, repoPaths)
 
-def push_repos_parallel(repoPaths: list, max_workers: int = 10) -> None:
+    
+def pull_repos_parallel(repoPaths: list, max_workers: int = 10) -> list:
+    results = []
     with ThreadPoolExecutor(max_workers=max_workers) as executor:    
-        executor.map(push_repo, repoPaths)
+        for result in executor.map(pull_repo, repoPaths):
+            results.append(result)
+            
+    return results
+
+def push_repos_parallel(repoPaths: list, max_workers: int = 10) -> list:
+    results = []
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:    
+        for result in executor.map(push_repo, repoPaths):
+            results.append(result)
+    
+    return results
 
     
 def repo_status(repoPath: str) -> str:
@@ -156,7 +189,7 @@ class repo_viewer():
 
 
 class log_viewer():
-    def __init__(self,max_lines: int = 40) -> None:
+    def __init__(self,max_lines: int = 100) -> None:
         self.log = ui.log(max_lines=max_lines).classes('w-full h-40')
         
         
@@ -250,11 +283,8 @@ class git_repo_table():
                         <q-btn @click="$parent.$emit('refresh', props)" icon="refresh" flat dense color='primary'>
                             <q-tooltip>Fetch from remote and update row</q-tooltip>
                         </q-btn>
-                        <q-btn @click="$parent.$emit('pull', props)" icon="download" v-if="props.row.localStatus==false" flat dense color='primary'>
+                        <q-btn @click="$parent.$emit('pull', props)" icon="download" flat dense color='primary'>
                             <q-tooltip>Pull from remote</q-tooltip>
-                        </q-btn>
-                        <q-btn @click="$parent.$emit('pull', props)" icon="download" v-else-if="props.row.localStatus==true" flat dense disable color='primary'>
-                            <q-tooltip>Local repo is dirty</q-tooltip>
                         </q-btn>
                         <q-btn @click="$parent.$emit('push', props)" icon="publish" v-if="props.row.remoteStatus=='Push your data'" flat dense color='primary'>
                             <q-tooltip>Push to remote</q-tooltip>
@@ -291,10 +321,10 @@ class git_repo_table():
                 </q-tr>
             ''')
 
-            self.table.on('refresh', lambda e: self.refresh_row(e))
-            self.table.on('pull', lambda e: self.pull_row(e))
-            self.table.on('push', lambda e: self.push_row(e))
-            self.table.on('clone', lambda e: self.clone_row(e))
+            self.table.on('refresh', lambda e: self.update([e.args['row']]))
+            self.table.on('pull', lambda e: self._pull_repos([e.args['row']]))
+            self.table.on('push', lambda e: self._push_repos([e.args['row']]))
+            self.table.on('clone', lambda e: self._clone_repo(e.args['row']))
             
             self.table.on('open', lambda e: GitRepo(e.args['row']['Path']).openExplorer())
             self.table.on('bash', lambda e: GitRepo(e.args['row']['Path']).openBash())
@@ -317,15 +347,16 @@ class git_repo_table():
     
     
     async def update(self, repos: list = []) -> None:
-        
         self._log.info_message("Update Git repository table...")
+        for repo in [r['Path'] for r in repos]:
+            self._log.info_message(f"   ....{repo}")
         n = ui.notification(message='Fetch from remote', spinner=True, timeout=None)
         await asyncio.sleep(0.1)
-        await run.io_bound(fetch_repos_parallel, [r['Path'] for r in repos])
+        await run.io_bound(fetch_repos_parallel, [r['Path'] for r in repos if r['isRepo']])
         n.message = 'Update table!'
         results = await run.cpu_bound(get_repo_status_parallel, repos)
         await asyncio.sleep(0.1)
-        self.table.update_rows(results)
+        self.__update_rows(results)
         n.message = 'Done!'
         n.spinner = False
         await asyncio.sleep(1)
@@ -334,16 +365,19 @@ class git_repo_table():
 
 
     async def _pull_repos(self, repos: list = []) -> None:
-        self._log.info_message("Pull all clean Git repositories...")
+        self._log.info_message("Pull Git repositories...")
         n = ui.notification(message='Pull from remote', spinner=True, timeout=None)
         await asyncio.sleep(0.1)
-        for repo in [r['Path'] for r in repos if r['localStatus'] is False]:
-            self._log.info_message(f"   ....{repo}")
-        await run.io_bound(pull_repos_parallel, [r['Path'] for r in repos if r['localStatus'] is False])
+        results = await run.io_bound(pull_repos_parallel, [r['Path'] for r in repos if r['isRepo']])
+        for result in results:
+            if result['Error']:
+                self._log.warning_message(f"{result['Path']}:\n{result['Message']}")
+            else:
+                self._log.info_message(f"{result['Path']}:\n{result['Message']}")
         n.message = 'Update table!'
         results = await run.cpu_bound(get_repo_status_parallel, repos)
         await asyncio.sleep(0.1)
-        self.table.update_rows(results)
+        self.__update_rows(results)
         n.message = 'Done!'
         n.spinner = False
         await asyncio.sleep(1)
@@ -352,16 +386,19 @@ class git_repo_table():
     
     
     async def _push_repos(self, repos: list = []) -> None:
-        self._log.info_message("Push all Git repositories...")
+        self._log.info_message("Push Git repositories...")
         n = ui.notification(message='Push to remote', spinner=True, timeout=None)
         await asyncio.sleep(0.1)
-        for repo in [r['Path'] for r in repos if r['remoteStatus'] == 'Push your data']:
-            self._log.info_message(f"   ....{repo}")
-        await run.io_bound(push_repos_parallel, [r['Path'] for r in repos if r['remoteStatus'] == 'Push your data'])
+        results = await run.io_bound(push_repos_parallel, [r['Path'] for r in repos if r['remoteStatus'] == 'Push your data'])
+        for result in results:
+            if result['Error']:
+                self._log.warning_message(f"{result['Path']}:\n{result['Message']}")
+            else:
+                self._log.info_message(f"{result['Path']}:\n{result['Message']}")
         n.message = 'Update table!'
         results = await run.cpu_bound(get_repo_status_parallel, repos)
         await asyncio.sleep(0.1)
-        self.table.update_rows(results)
+        self.__update_rows(results)
         n.message = 'Done!'
         n.spinner = False
         await asyncio.sleep(1)
@@ -443,69 +480,23 @@ class git_repo_table():
         ]
 
     
-    def __update_row_status(self, repoPath: str) -> None:
-        repoStatus = repo_status(repoPath)
-        repo = GitRepo(repoPath)
-        
-        update = {
-            'Path': repoPath,
-            'status': repo.git.status('-s'),
-            'localStatus': repo.is_dirty(untracked_files=True),
-            'remoteStatus': repoStatus,
-            }
-
-        for row in self.table.rows:
-            if row['Path'] == repoPath:
-                row.update(update)
+    def __update_rows(self, results: list = []) -> None:
+        for result in results:
+            for row in self.table.rows:
+                if row['Path'] == result['Path']:
+                    row.update(result)
     
         self.table.update()
-    
-    
-    async def refresh_row(self, e: events.GenericEventArguments) -> None:
-        self._log.info_message(f"Fetch {e.args['row']['Path']} ...")
-        n = ui.notification(message='Fetch from remote', spinner=True, timeout=None)
-        await asyncio.sleep(0.1)
-        await run.io_bound(fetch_repo, e.args['row']['Path'])
-        self.__update_row_status(e.args['row']['Path'])
-        n.message = 'Done!'
-        n.spinner = False
-        await asyncio.sleep(1)
-        n.dismiss()
-        self._log.info_message("...done!")
-    
-    
-    async def pull_row(self, e: events.GenericEventArguments) -> None:
-        self._log.info_message(f"Pull {e.args['row']['Path']} ...")
-        n = ui.notification(message='Pull from remote', spinner=True, timeout=None)
-        await asyncio.sleep(0.1)
-        result = await run.io_bound(pull_repo, e.args['row']['Path'])
-        self.__update_row_status(e.args['row']['Path'])
-        n.message = 'Done!'
-        n.spinner = False
-        await asyncio.sleep(1)
-        n.dismiss()
-        self._log.info_message(f"...done: {result}")
 
 
-    async def push_row(self, e: events.GenericEventArguments) -> None:
-        self._log.info_message(f"Push {e.args['row']['Path']} ...")
-        n = ui.notification(message='Push to remote', spinner=True, timeout=None)
-        await asyncio.sleep(0.1)
-        await run.io_bound(push_repo, e.args['row']['Path'])
-        self.__update_row_status(e.args['row']['Path'])
-        n.message = 'Done!'
-        n.spinner = False
-        await asyncio.sleep(1)
-        n.dismiss()
-        self._log.info_message("...done!")
-    
-    
-    async def clone_row(self, e: events.GenericEventArguments) -> None:
-        self._log.info_message(f"Clone to {e.args['row']['Path']} ...")
+    async def _clone_repo(self, repo: dict = {}) -> None:
+        self._log.info_message(f"Clone to {repo['Path']} ...")
         n = ui.notification(message='Clone from remote', spinner=True, timeout=None)
         await asyncio.sleep(0.1)
-        await run.io_bound(clone_repo, e.args['row']['Path'])
-        self.__update_row_status(e.args['row']['Path'])
+        await run.io_bound(clone_repo, repo['Path'])
+        results = await run.cpu_bound(get_repo_status_parallel, [repo])
+        await asyncio.sleep(0.1)
+        self.__update_rows(results)
         n.message = 'Done!'
         n.spinner = False
         await asyncio.sleep(1)
