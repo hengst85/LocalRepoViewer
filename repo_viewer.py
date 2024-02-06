@@ -345,7 +345,8 @@ class git_repo_table():
                             </q-btn>
                         </div>
                         <div class="text-left"><b>Active Branch / Expected Branch:</b> {{ props.row.activeBranch }} / {{ props.row.Branch }}</div>
-                        <div class="text-left"><b>Status:</b> {{ props.row.status }}</div>
+                        <div class="text-left"><b>Status:</b></div>
+                        <div class="text-left" style="margin-left: 30px;"><span style="white-space: pre;">{{ props.row.status }}</span></div>
                     </q-td>
                 </q-tr>
             ''')
