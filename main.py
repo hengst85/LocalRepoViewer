@@ -1,8 +1,8 @@
 from nicegui import ui
+from pathlib import Path
 from repo_viewer import repo_viewer
 
-#CONFIGFILE = r'D:\Programmieren\Dashboard\LocalRepoViewer\config.toml'
-CONFIGFILE = r'C:\\HIL\\ApplicationArea\\EEVMerkenich\\Tools\\Dashboard\\LocalRepoViewer\\config2.toml'
+CONFIGFILE = Path(__file__).parent.joinpath('config.toml')
 
 def main() -> None:
 
