@@ -1,6 +1,5 @@
-from nicegui import ui, run, events
+from nicegui import ui, run, app
 from pathlib import Path
-from tkinter import Tk
 import tomli
 import os
 import asyncio
@@ -44,13 +43,22 @@ def push_repo(repoPath: str) -> str:
     except GitCommandError as e:
         if e.stderr:
             result = e.stderr.removeprefix("\n  stderr: 'error: ")
+            result = result.removesuffix("\n'")
         return {
             'Path': repoPath, 
             'Error': True, 
             'Message': result}
     
-def clone_repo(repoPath: str) -> None:
-    print('Not yet implemented!')
+def clone_repo(repoPath: str, gitUrl: str, branchName: str = 'main') -> str:
+    try:
+        GitRepo.clone_from(gitUrl, repoPath, branch=branchName)
+        result = ''
+    except GitCommandError as e:
+        if e.stderr:
+            result = e.stderr.removeprefix("\n  stderr: 'fatal: ")
+            result = result.removesuffix("\n'")
+    
+    return result
 
 def fetch_repos_parallel(repoPaths: list, max_workers: int = 10) -> None:
     with ThreadPoolExecutor(max_workers=max_workers) as executor:    
@@ -138,7 +146,10 @@ class repo_viewer():
         self._load_config()
         
         # File handling
-        self.config_file_handler()
+        with ui.row().classes('w-full items-center justify-between'):
+            self.config_file_handler()
+            with ui.button(on_click=app.shutdown).props('flat color=primary icon=exit_to_app'):
+                ui.tooltip('Close application')
                 
         # Build up git repo table
         if 'git_repo' in self._config.keys():
@@ -174,7 +185,7 @@ class repo_viewer():
 
     def config_file_handler(self) -> None:
         # File selection
-        with ui.row().classes('items-center w-full'):
+        with ui.row().classes('items-center'):
             selectedFile = ui.select([self._filePath.as_posix()],value=self._filePath.as_posix(), label='Configuration File')
             selectedFile.props('readonly disable borderless hide-dropdown-icon label-color="primary"')
             selectedFile.style('min-width: 350px;')
@@ -191,7 +202,7 @@ class repo_viewer():
         
         # Update tables
         if self.git_repo_table:
-            await self.git_repo_table.update(self._config['git_repo'])
+            await self.git_repo_table.update_table(self._config['git_repo'], fullList=True)
         if self.svn_repo_table:
             self.svn_repo_table.update(self._config['svn_repo'])
 
@@ -222,10 +233,13 @@ class git_repo_table():
             self.table._props['virtual-scroll'] = False #! If true, column widths change with scrolling
             self.table._props['wrap-cells'] = True
 
+            #self.timer = ui.timer(60.0, lambda: self.update_table(self.table.rows), active=False)
+
             with self.table.add_slot('top-left'):
                 ui.label('Git Repositories').classes('text-h5 font-bold text-primary')
             with self.table.add_slot('top-right'):
-                with ui.button('Update', on_click=lambda: self.update(self.table.rows), color='primary', icon='refresh').props('flat'):
+                #ui.switch('Periodic Update', value=False).bind_value_to(self.timer, 'active')
+                with ui.button('Update', on_click=lambda: self.update_table(self.table.rows), color='primary', icon='refresh').props('flat'):
                     ui.tooltip('Fetch from remote and update table')
                 with ui.button('Pull', on_click=lambda: self._pull_repos(self.table.rows),color='primary', icon='download').props('flat'):
                     ui.tooltip('Pull from remote and update table')
@@ -339,7 +353,7 @@ class git_repo_table():
             self.table.on('copyLocalPath', lambda e: copy2clipboard(e.args['row']['Path']))
             self.table.on('copyRemotePath', lambda e: copy2clipboard(e.args['row']['Url']))
             
-            self.table.on('refresh', lambda e: self.update([e.args['row']]))
+            self.table.on('refresh', lambda e: self.update_table([e.args['row']]))
             self.table.on('pull', lambda e: self._pull_repos([e.args['row']]))
             self.table.on('push', lambda e: self._push_repos([e.args['row']]))
             self.table.on('clone', lambda e: self._clone_repo(e.args['row']))
@@ -362,9 +376,9 @@ class git_repo_table():
         results = get_repo_status_parallel(repos)
         self.table.update_rows(results)
         self._log.info_message("...done!")
+
     
-    
-    async def update(self, repos: list = []) -> None:
+    async def update_table(self, repos: list = [], fullList: bool = False) -> None:
         self._log.info_message("Update Git repository table...")
         for repo in [r['Path'] for r in repos]:
             self._log.info_message(f"   ....{repo}")
@@ -374,7 +388,10 @@ class git_repo_table():
         n.message = 'Update table!'
         results = await run.cpu_bound(get_repo_status_parallel, repos)
         await asyncio.sleep(0.1)
-        self.__update_rows(results)
+        if fullList:
+            self.table.update_rows(results)
+        else:
+            self.__update_rows(results)
         n.message = 'Done!'
         n.spinner = False
         await asyncio.sleep(1)
@@ -511,7 +528,9 @@ class git_repo_table():
         self._log.info_message(f"Clone to {repo['Path']} ...")
         n = ui.notification(message='Clone from remote', spinner=True, timeout=None)
         await asyncio.sleep(0.1)
-        await run.io_bound(clone_repo, repo['Path'])
+        result = await run.io_bound(clone_repo, repo['Path'], repo['Url'], repo['Branch'])
+        if result:
+            self._log.warning_message(f"{result}")
         results = await run.cpu_bound(get_repo_status_parallel, [repo])
         await asyncio.sleep(0.1)
         self.__update_rows(results)

@@ -1,8 +1,8 @@
 from nicegui import ui
 from repo_viewer import repo_viewer
 
-CONFIGFILE = r'D:\Programmieren\Dashboard\LocalRepoViewer\config.toml'
-#CONFIGFILE = r'C:\HIL\ApplicationArea\EEVMerkenich\Tools\Dashboard\LocalRepoViewer\config2.toml'
+#CONFIGFILE = r'D:\Programmieren\Dashboard\LocalRepoViewer\config.toml'
+CONFIGFILE = r'C:\\HIL\\ApplicationArea\\EEVMerkenich\\Tools\\Dashboard\\LocalRepoViewer\\config2.toml'
 
 def main() -> None:
 
@@ -11,7 +11,7 @@ def main() -> None:
     with ui.column().classes('w-full'):
         repo_viewer(CONFIGFILE)
 
-    ui.run(reload=True)
-    
+    ui.run(reload=False, show=False, title='Repository Viewer', favicon='🛡')
+    #ui.run(reload=True)
 if __name__ in {'__main__', '__mp_main__'}:
     main()
