@@ -1,4 +1,4 @@
-from nicegui import ui, run, app
+from nicegui import ui, run, app, background_tasks
 from pathlib import Path
 import tomli
 import os
@@ -233,12 +233,13 @@ class git_repo_table():
             self.table._props['virtual-scroll'] = False #! If true, column widths change with scrolling
             self.table._props['wrap-cells'] = True
 
-            #self.timer = ui.timer(60.0, lambda: self.update_table(self.table.rows), active=False)
+            self.timer = ui.timer(900.0, lambda: background_tasks.create(self.__periodic_update_table(self.table.rows)), active=False)
 
             with self.table.add_slot('top-left'):
                 ui.label('Git Repositories').classes('text-h5 font-bold text-primary')
             with self.table.add_slot('top-right'):
-                #ui.switch('Periodic Update', value=False).bind_value_to(self.timer, 'active')
+                with ui.switch(value=False).bind_value_to(self.timer, 'active').props('icon="refresh"'):
+                    ui.tooltip('Updates table all 15 minutes')
                 with ui.button('Update', on_click=lambda: self.update_table(self.table.rows), color='primary', icon='refresh').props('flat'):
                     ui.tooltip('Fetch from remote and update table')
                 with ui.button('Pull', on_click=lambda: self._pull_repos(self.table.rows),color='primary', icon='download').props('flat'):
@@ -378,6 +379,14 @@ class git_repo_table():
         self.table.update_rows(results)
         self._log.info_message("...done!")
 
+
+    async def __periodic_update_table(self, repos: list = []) -> None:
+        self._log.info_message("Update Git repository table...")
+        await run.io_bound(fetch_repos_parallel, [r['Path'] for r in repos])
+        results = await run.cpu_bound(get_repo_status_parallel, repos)
+        self.__update_rows(results)
+        self._log.info_message("...done!")
+        
     
     async def update_table(self, repos: list = [], fullList: bool = False) -> None:
         self._log.info_message("Update Git repository table...")
@@ -395,7 +404,7 @@ class git_repo_table():
             self.__update_rows(results)
         n.message = 'Done!'
         n.spinner = False
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.5)
         n.dismiss()
         self._log.info_message("...done!")
 
