@@ -1,0 +1,14 @@
+[[git_repo]]
+Path = "D:\\Programmieren\\Dashboard\\GUI_Frame"
+Url = "https://github.com/hengst85/GUI_Frame.git"
+Branch = "main"
+
+[[git_repo]]
+Path = "D:\\Programmieren\\Dashboard\\LogMessageViewer"
+Url = "https://github.com/hengst85/LogMessageViewer.git"
+Branch = "main"
+
+[[git_repo]]
+Path = "D:\\Programmieren\\Dashboard\\LocalRepoViewer"
+Url = "https://github.com/hengst85/LocalRepoViewer.git"
+Branch = "main"

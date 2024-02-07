@@ -11,7 +11,12 @@ def main() -> None:
     with ui.column().classes('w-full'):
         repo_viewer(CONFIGFILE)
 
-    ui.run(reload=False, show=False, title='Repository Viewer', favicon='🛡')
+    ui.run(reload=False, \
+        show=False, \
+        title='Repository Viewer', \
+        favicon=Path(__file__).parent.joinpath('favicon.ico'),
+        host='localhost',
+        port=8083)
     #ui.run(reload=True)
 if __name__ in {'__main__', '__mp_main__'}:
     main()

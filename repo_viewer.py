@@ -208,7 +208,7 @@ class repo_viewer():
 
 
 class log_viewer():
-    def __init__(self,max_lines: int = 100) -> None:
+    def __init__(self,max_lines: int = None) -> None:
         self.log = ui.log(max_lines=max_lines).classes('w-full h-40')
         
         
@@ -238,7 +238,7 @@ class git_repo_table():
             with self.table.add_slot('top-left'):
                 ui.label('Git Repositories').classes('text-h5 font-bold text-primary')
             with self.table.add_slot('top-right'):
-                with ui.switch(value=False).bind_value_to(self.timer, 'active').props('icon="refresh"'):
+                with ui.switch(value=False).bind_value_to(self.timer, 'active').props('icon="autorenew"'):
                     ui.tooltip('Updates table all 15 minutes')
                 with ui.button('Update', on_click=lambda: self.update_table(self.table.rows), color='primary', icon='refresh').props('flat'):
                     ui.tooltip('Fetch from remote and update table')
