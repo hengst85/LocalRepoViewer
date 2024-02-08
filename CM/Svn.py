@@ -7,6 +7,7 @@ Import Modules """
 import os
 import sys
 import clr
+import subprocess
 from zipfile import ZipFile
 from pathlib import Path
 from send2trash import send2trash
@@ -81,6 +82,50 @@ class ExtendedSvnRepo(Repository):
         # //cleanStatus = SharpSvn.SvnStatus.Normal
         # //return not all([x.LocalContentStatus == cleanStatus for x in status[1]])
 
+    def getStatus(self, untracked_files: bool = True) -> list:
+        """Check if local working copy is dirty
+
+        Args:
+            untracked_files (bool, optional): Check for untracked files. Defaults to True.
+
+        Returns:
+            bool: True if local working copy is dirty
+        """
+        # https://sharpsvntips.net/post/45301419716/getstatus-and-status
+        # https://stackoverflow.com/questions/26218776/what-is-the-meaning-of-the-svn-statuses-contentstatus-nodestatus-propertystatu
+
+        # get status of local working copy
+        status = self._getStatus()
+
+        # Check for dirty status (set is much faster than list)
+        dirtyStatusList = {
+            SharpSvn.SvnStatus.Modified,
+            SharpSvn.SvnStatus.Added,
+            SharpSvn.SvnStatus.Missing,
+            SharpSvn.SvnStatus.Deleted,
+            SharpSvn.SvnStatus.Conflicted,
+        }
+        if untracked_files:
+            dirtyStatusList.add(SharpSvn.SvnStatus.NotVersioned)
+        
+        dirtyItems = []    
+        for item in [x for x in status[1] if x.LocalContentStatus in dirtyStatusList]:
+            relativePath = Path(item.Path).relative_to(self._localWorkingFolder).as_posix()
+            if item.LocalContentStatus == SharpSvn.SvnStatus.Modified:
+                dirtyItems.append(f' M {relativePath}')
+            elif item.LocalContentStatus == SharpSvn.SvnStatus.Deleted:
+                dirtyItems.append(f' D {relativePath}')
+            elif item.LocalContentStatus == SharpSvn.SvnStatus.Added:
+                dirtyItems.append(f' A {relativePath}')
+            elif item.LocalContentStatus == SharpSvn.SvnStatus.Missing:
+                dirtyItems.append(f' ? {relativePath}')
+            elif item.LocalContentStatus == SharpSvn.SvnStatus.NotVersioned:
+                dirtyItems.append(f' U {relativePath}')
+            else:
+                dirtyItems.append(f'?? {relativePath}')
+            
+        return dirtyItems
+
     def getWorkCopyInfo(self) -> dict:
         """Get info of local working copy
 
@@ -96,7 +141,7 @@ class ExtendedSvnRepo(Repository):
         status["branch"] = Path(info[1].Uri.AbsoluteUri).relative_to(self._repositoryUrl)
         status["repoUrl"] = Path(self._repositoryUrl)
         status["isDirty"] = self.is_dirty()
-        # //status["revision"] = str(info[1].LastChangeRevision)
+        status["lastChangeRevision"] = str(info[1].LastChangeRevision)
         status["revision"] = str(info[1].Revision)
 
         return status
@@ -112,8 +157,22 @@ class ExtendedSvnRepo(Repository):
         info = self._svnClient.GetInfo(target, None)
 
         # Return last change revision for given working directory
-        # //return str(info[1].LastChangeRevision)
         return str(info[1].Revision)
+
+
+    def getLocalLastChangeRevision(self) -> str:
+        """Get revision from local working copy
+
+        Returns:
+            str: revision number
+        """
+        # Get information for given local working directory
+        target = SharpSvn.SvnPathTarget(self._localWorkingFolder)
+        info = self._svnClient.GetInfo(target, None)
+
+        # Return last change revision for given working directory
+        return str(info[1].LastChangeRevision)
+    
 
     def getRemoteHeadRevision(self) -> str:
         """Get revision from remote repository folder
@@ -128,6 +187,21 @@ class ExtendedSvnRepo(Repository):
         # Return last change revision for given repository folder
         # //return str(info[1].LastChangeRevision)
         return str(info[1].Revision)
+
+
+    def getRemoteLastChangeRevision(self) -> str:
+        """Get revision from remote repository folder
+
+        Returns:
+            str: revision number
+        """
+        # Get information for given repository folder from remote
+        target = SharpSvn.SvnUriTarget(self._repositoryFolder)
+        info = self._svnClient.GetInfo(target, None)
+
+        # Return last change revision for given repository folder
+        return str(info[1].LastChangeRevision)
+    
 
     def setupCleanWorkCopy(self, revision: str = None, branch: str = None, backup: bool = False) -> str:
         """Setup clean local working copy (Reset and clean local data)
@@ -209,3 +283,21 @@ class ExtendedSvnRepo(Repository):
 
         # return active revision
         return activeRevision
+
+
+    def openExplorer(self) -> None:
+        os.startfile(self._localWorkingFolder)
+    
+    
+    def openBash(self) -> None:
+        #os.system(f'start "" "{os.getenv("HILGitBashPath", None)}" --cd="{self._localWorkingFolder}"')
+        subprocess.Popen([os.getenv('HilGitBashPath'),f'--cd={self._localWorkingFolder}'])
+    
+    
+    def openPowershell(self) -> None:
+        subprocess.Popen(f"C:/Program Files/PowerShell/7/pwsh.exe -NoExit -Command Set-Location -LiteralPath '{self._localWorkingFolder}'")
+        
+        
+    def openRepoBrowser(self) -> None:
+        # https://tortoisesvn.net/docs/release/TortoiseSVN_en/tsvn-automation.html
+        subprocess.Popen([r'C:\Program Files\TortoiseSVN\bin\TortoiseProc.exe', '/command:repobrowser', f"/path:{self._repositoryFolder}"])

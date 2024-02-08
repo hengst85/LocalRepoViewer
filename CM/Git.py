@@ -264,7 +264,7 @@ class ExtendedGitRepo(Repo):
         
     
     def openBash(self) -> None:
-        os.system(f'start "" "{os.getenv("HILGitBashPath", None)}" --cd="{self.working_dir}"')
+        #os.system(f'start "" "{os.getenv("HILGitBashPath", None)}" --cd="{self.working_dir}"')
         subprocess.Popen([os.getenv('HilGitBashPath'),f'--cd={self.working_dir}'])
     
         

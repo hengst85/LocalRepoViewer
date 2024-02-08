@@ -60,3 +60,16 @@ Branch = "main"
 Path = "C:/HIL/ApplicationArea/EEVMerkenich/Modeling/ModelDevelopment/Generic/UserInput"
 Url = "git@github.com:ford-innersource/eet.hil.ModelsUserInput.git"
 Branch = "main"
+
+
+
+[[svn_repo]]
+Path = "C:/HIL/ApplicationArea/EEVMerkenich/Tools/dSPACE/SYNECT/Base"
+ServerUrl = "https://wgc100cn4lxj2.merkenich.ford.com/svn/HiL-Releases"
+RepoDir = "trunk/ApplicationArea/EEVMerkenich/Tools/dSPACE/SYNECT/Base"
+
+
+[[svn_repo]]
+Path = "C:/HIL/ApplicationArea/EEVMerkenich/Tools/dSPACE/SYNECT/GoFiles"
+ServerUrl = "https://wgc100cn4lxj2.merkenich.ford.com/svn/HiL-Releases"
+RepoDir = "trunk/ApplicationArea/EEVMerkenich/Tools/dSPACE/SYNECT/GoFiles"
