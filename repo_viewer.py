@@ -4,6 +4,8 @@ import tomli
 import os
 import asyncio
 import subprocess
+from random import random
+from time import sleep
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError
@@ -108,11 +110,12 @@ def git_repo_status(repoPath: str) -> str:
 
 
 def get_git_repo_status(r: dict) -> dict:
+    print(f"GIT: {r['Path']} started!")
     if Path(r['Path']).is_dir() and Path(r['Path']).joinpath('.git').is_dir():
         repo = GitRepo(r['Path'])
-
+        print(f"GIT: {r['Path']} repo object is initialized!")
         repoStatus = git_repo_status(r['Path'])
-
+        print(f"GIT: {r['Path']} return result!")
         return {
             'Path': r['Path'],
             'Url': r['Url'],
@@ -125,6 +128,7 @@ def get_git_repo_status(r: dict) -> dict:
             'isRepo': True
             }
     else:
+        print(f"GIT: {r['Path']} return result!")
         return {
             'Path': r['Path'],
             'Url': r['Url'],
@@ -140,6 +144,7 @@ def get_git_repo_status(r: dict) -> dict:
 
 def get_git_repo_status_parallel(repos: list) -> list:
     repo_status = []
+    print(f"GIT: {repos}")
     with ThreadPoolExecutor() as executor:
         try:
             for result in executor.map(get_git_repo_status, repos, timeout=10):
@@ -163,11 +168,13 @@ def svn_repo_status(repo: SvnRepo) -> str:
 
 
 def get_svn_repo_status(r: dict) -> dict:
+    print(f"SVN: {r['Path']} started!")
     if Path(r['Path']).is_dir() and Path(r['Path']).joinpath('.svn').is_dir():
         repo = SvnRepo(r['Path'], r['Path'], r['ServerUrl'], '/'.join([r['ServerUrl'], r['RepoDir']]), '<winauth>', '')
-
+        print(f"SVN: {r['Path']} repo object is initialized!")
+        sleep(random())
         repoStatus = svn_repo_status(repo)
-
+        print(f"SVN: {r['Path']} return result!")
         return {
             'Path': r['Path'],
             'ServerUrl': r['ServerUrl'],
@@ -179,6 +186,7 @@ def get_svn_repo_status(r: dict) -> dict:
             'isRepo': True
             }
     else:
+        print(f"SVN: {r['Path']} return result!")
         return {
             'Path': r['Path'],
             'ServerUrl': r['ServerUrl'],
@@ -189,10 +197,11 @@ def get_svn_repo_status(r: dict) -> dict:
             'remoteStatus': "",
             'isRepo': False
             }
-
+    
 
 def get_svn_repo_status_parallel(repos: list) -> list:
     repo_status = []
+    print(f"SVN: {repos}")
     with ThreadPoolExecutor() as executor:
         try:
             for result in executor.map(get_svn_repo_status, repos, timeout=10):
@@ -211,11 +220,18 @@ def update_svn_repo(r: dict) -> list:
             'Path': r['Path'], 
             'Error': False, 
             'Message': result}
-    except:
-        return {
-            'Path': r['Path'], 
-            'Error': True, 
-            'Message': result}
+    except Exception as e:
+        if result:
+            return {
+                'Path': r['Path'], 
+                'Error': True, 
+                'Message': result}
+        else:
+            return {
+                'Path': r['Path'], 
+                'Error': True, 
+                'Message': str(e)}
+
 
 
 def update_svn_repos_parallel(repos: list) -> list:
@@ -340,14 +356,14 @@ class git_repo_table():
             with self.table.add_slot('top-left'):
                 ui.label('Git Repositories').classes('text-h5 font-bold text-primary')
             with self.table.add_slot('top-right'):
-                with ui.switch(value=False).bind_value_to(self.timer, 'active').props('icon="autorenew"'):
-                    ui.tooltip('Updates table all 15 minutes')
-                with ui.button('Refresh', on_click=lambda: self.update_table(self.table.rows), color='primary', icon='refresh').props('flat'):
-                    ui.tooltip('Fetch from remote and update table')
                 with ui.button('Pull', on_click=lambda: self._pull_repos(self.table.rows),color='primary', icon='download').props('flat'):
                     ui.tooltip('Pull from remote and update table')
                 with ui.button('Push', on_click=lambda: self._push_repos(self.table.rows), color='primary', icon='publish').props('flat'):
                     ui.tooltip('Push to remote and update table')
+                with ui.button('Refresh', on_click=lambda: self.update_table(self.table.rows), color='primary', icon='refresh').props('flat'):
+                    ui.tooltip('Fetch from remote and update table')
+                with ui.switch(value=False).bind_value_to(self.timer, 'active').props('icon="autorenew"'):
+                    ui.tooltip('Updates table all 15 minutes')
 
             self.table.add_slot('header', r'''
                 <q-tr :props="props">
@@ -497,7 +513,7 @@ class git_repo_table():
         n = ui.notification(message='Fetch from remote', spinner=True, timeout=None, color='primary')
         await asyncio.sleep(0.1)
         await run.io_bound(fetch_repos_parallel, [r['Path'] for r in repos])
-        n.message = 'Get Repo status!'
+        n.message = 'Get Git repo status!'
         await asyncio.sleep(0.1)
         results = await run.cpu_bound(get_git_repo_status_parallel, repos)
         n.message = 'Update Git table!'
@@ -524,7 +540,7 @@ class git_repo_table():
             else:
                 self._log.info_message(f"{result['Path']}:\n{result['Message']}")
         await asyncio.sleep(0.5)
-        n.message = 'Get Repo status!'
+        n.message = 'Get Git repo status!'
         results = await run.cpu_bound(get_git_repo_status_parallel, repos)
         n.message = 'Update Git table!'
         await asyncio.sleep(0.5)
@@ -547,7 +563,7 @@ class git_repo_table():
             else:
                 self._log.info_message(f"{result['Path']}:\n{result['Message']}")
         await asyncio.sleep(0.5)
-        n.message = 'Get Repo status!'
+        n.message = 'Get Git repo status!'
         results = await run.cpu_bound(get_git_repo_status_parallel, repos)
         n.message = 'Update Git table!'
         await asyncio.sleep(0.5)
@@ -686,17 +702,18 @@ class svn_repo_table():
             self.table._props['virtual-scroll'] = False #! If true, column widths change with scrolling
             self.table._props['wrap-cells'] = True
 
-            #self.timer = ui.timer(900.0, lambda: background_tasks.create(self.__periodic_update_table(self.table.rows)), active=False)
+            self.timer = ui.timer(900.0, lambda: background_tasks.create(self.__periodic_update_table(self.table.rows)), active=False)
 
             with self.table.add_slot('top-left'):
                 ui.label('Svn Repositories').classes('text-h5 font-bold text-primary')
             with self.table.add_slot('top-right'):
-                # with ui.switch(value=False).bind_value_to(self.timer, 'active').props('icon="autorenew"'):
-                #     ui.tooltip('Refresh table all 15 minutes')
-                with ui.button('Refresh', on_click=lambda: self.update_table(self.table.rows), color='primary', icon='refresh').props('flat'):
-                    ui.tooltip('Refresh table')
                 with ui.button('Update', on_click=lambda: self._update_repos(self.table.rows),color='primary', icon='download').props('flat'):
                     ui.tooltip('Update local repositories and refresh table')
+                with ui.button('Refresh', on_click=lambda: self.update_table(self.table.rows), color='primary', icon='refresh').props('flat'):
+                    ui.tooltip('Refresh table')
+                with ui.switch(value=False).bind_value_to(self.timer, 'active').props('icon="autorenew"'):
+                    ui.tooltip('Refresh table all 15 minutes')
+                
 
 
             self.table.add_slot('header', r'''
@@ -904,6 +921,13 @@ class svn_repo_table():
         self._log.info_message("...done!")
 
 
+    async def __periodic_update_table(self, repos: list = []) -> None:
+        self._log.info_message("Update Svn repository table...")
+        results = await run.cpu_bound(get_svn_repo_status_parallel, repos)
+        self.__update_rows(results)
+        self._log.info_message("...done!")
+        
+
     def __update_rows(self, results: list = []) -> None:
         for result in results:
             for row in self.table.rows:
@@ -917,7 +941,7 @@ class svn_repo_table():
         self._log.info_message("Update Svn repository table...")
         for repo in [r['Path'] for r in repos]:
             self._log.info_message(f"   ....{repo}")
-        n = ui.notification(message='Get repo status!', spinner=True, timeout=None, color='primary')
+        n = ui.notification(message='Get Svn repo status!', spinner=True, timeout=None, color='primary')
         await asyncio.sleep(0.1)
         results = await run.cpu_bound(get_svn_repo_status_parallel, repos)
         n.message = 'Update Svn table!'
@@ -943,7 +967,7 @@ class svn_repo_table():
                 self._log.warning_message(f"{result['Path']}:\n{result['Message']}")
             else:
                 self._log.info_message(f"{result['Path']}:\n{result['Message']}")
-        n.message = 'Get repo status!'
+        n.message = 'Get Svn repo status!'
         results = await run.cpu_bound(get_svn_repo_status_parallel, repos)
         n.message = 'Update Svn table!'
         await asyncio.sleep(0.5)
