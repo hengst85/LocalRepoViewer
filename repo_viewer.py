@@ -603,14 +603,20 @@ class git_repo_table():
                 'label': 'Local Status', 
                 'field': 'localStatus',
                 'sortable': True,
-                'style': 'width: 150px'
+                'style': {
+                    'width': '150px',
+                    'min-width': '150px'
+                }
             },
             {
                 'name': 'remoteStatus',  
                 'label': 'Remote Status', 
                 'field': 'remoteStatus',
                 'sortable': True,
-                'style': 'width: 200px'
+                'style': {
+                    'width': '200px',
+                    'min-width': '200px'
+                }
             },
             {
                 'name': 'isRepo',  
@@ -624,7 +630,10 @@ class git_repo_table():
                 'field': 'actions', 
                 'sortable': False,
                 'align': 'left', 
-                'style': 'width: 130px'
+                'style': {
+                    'width': '130px',
+                    'min-width': '130px'
+                }
             },
             {
                 'name': 'actions2', 
@@ -632,7 +641,10 @@ class git_repo_table():
                 'field': 'actions2', 
                 'sortable': False,
                 'align': 'left', 
-                'style': 'width: 130px'
+                'style': {
+                    'width': '130px',
+                    'min-width': '130px'
+                }
             }
         ]
 
@@ -837,14 +849,20 @@ class svn_repo_table():
                 'label': 'Local Status', 
                 'field': 'localStatus',
                 'sortable': True,
-                'style': 'width: 150px'
+                'style': {
+                    'width': '150px',
+                    'min-width': '150px'
+                }
             },
             {
                 'name': 'remoteStatus',  
                 'label': 'Remote Status', 
                 'field': 'remoteStatus',
                 'sortable': True,
-                'style': 'width: 200px'
+                'style': {
+                    'width': '200px',
+                    'min-width': '200px'
+                }
             },
             {
                 'name': 'isRepo',  
@@ -858,7 +876,10 @@ class svn_repo_table():
                 'field': 'actions', 
                 'sortable': False,
                 'align': 'left', 
-                'style': 'width: 130px'
+                'style': {
+                    'width': '130px',
+                    'min-width': '130px'
+                }
             },
             {
                 'name': 'actions2', 
@@ -866,7 +887,10 @@ class svn_repo_table():
                 'field': 'actions2', 
                 'sortable': False,
                 'align': 'left', 
-                'style': 'width: 130px'
+                'style': {
+                    'width': '130px',
+                    'min-width': '130px'
+                }
             }]
 
 
