@@ -16,7 +16,7 @@ def taskB(txt: int):
 def call_taskA(x):
     print("Tasks A will be executed")
     results = []
-    with ThreadPoolExecutor as executor:
+    with ThreadPoolExecutor() as executor:
         for result in executor.map(taskA, x):
             results.append(result)
             
@@ -25,7 +25,7 @@ def call_taskA(x):
 def call_taskB(x):
     print("Tasks B will be executed")
     results = []
-    with ThreadPoolExecutor as executor:
+    with ThreadPoolExecutor() as executor:
         for result in executor.map(taskB, x):
             results.append(result)
 
