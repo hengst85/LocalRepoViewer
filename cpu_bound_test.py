@@ -31,17 +31,6 @@ def call_taskB(x):
 
     return results
 
-async def run_taskA(x):
-    print("Task A executor will be started")
-    result = await run.cpu_bound(call_taskA, x)
-    print(f"Task A finished: {result}")
-
-
-async def run_taskB(x):
-    print("Task B executor will be started")
-    result = await run.cpu_bound(call_taskB, x)
-    print(f"Task B finished: {result}")
-
 
 class MainClass():
     def __init__(self) -> None:
@@ -49,15 +38,28 @@ class MainClass():
             self.subclassA = SubClassA()
             self.subClassB = SubClassB()
     
+    
 class SubClassA():
     def __init__(self) -> None:
         call_taskA(range(5))  
-        ui.button("TaskA", on_click= lambda: run_taskA(range(5)))
+        ui.button("TaskA", on_click= lambda: self.run_taskA(range(5)))
+        
+    async def run_taskA(self, x):
+        print("Task A executor will be started")
+        result = await run.cpu_bound(call_taskA, x)
+        print(f"Task A finished: {result}")
+        
         
 class SubClassB():
     def __init__(self) -> None:
         call_taskB(range(5))     
-        ui.button("TaskB", on_click= lambda: run_taskB(range(5)))
+        ui.button("TaskB", on_click= lambda: self.run_taskB(range(5)))
+
+    async def run_taskB(self, x):
+        print("Task B executor will be started")
+        result = await run.cpu_bound(call_taskB, x)
+        print(f"Task B finished: {result}")
+
 
 
 
