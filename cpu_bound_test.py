@@ -43,10 +43,27 @@ async def run_taskB(x):
     print(f"Task B finished: {result}")
 
 
+class MainClass():
+    def __init__(self) -> None:
+        with ui.row().classes('w-full items-center justify-between'):
+            self.subclassA = SubClassA()
+            self.subClassB = SubClassB()
     
-ui.button("TaskA", on_click= lambda: run_taskA(range(5)))
-ui.button("TaskB", on_click= lambda: run_taskB(range(5)))
-    
+class SubClassA():
+    def __init__(self) -> None:
+        call_taskA(range(5))  
+        ui.button("TaskA", on_click= lambda: run_taskA(range(5)))
+        
+class SubClassB():
+    def __init__(self) -> None:
+        call_taskB(range(5))     
+        ui.button("TaskB", on_click= lambda: run_taskB(range(5)))
+
+
+
+with ui.column().classes('w-full'):
+    MainClass()
+
 ui.run()
     
 
