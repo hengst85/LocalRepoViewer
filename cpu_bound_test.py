@@ -1,71 +1,49 @@
 from nicegui import ui, run
-import time
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
-
-def taskA(txt: int):
-    print(f"taskA: {txt}")
-    time.sleep(1)
-    return txt
-    
-def taskB(txt: int):
-    print(f"taskB: {txt}")
-    time.sleep(1)
-    return txt
+from time import sleep
     
 def call_taskA(x):
     print("Tasks A will be executed")
-    results = []
-    with ThreadPoolExecutor() as executor:
-        for result in executor.map(taskA, x):
-            results.append(result)
-            
-    return results
+    sleep(1)
+    return x
     
 def call_taskB(x):
     print("Tasks B will be executed")
-    results = []
-    with ThreadPoolExecutor() as executor:
-        for result in executor.map(taskB, x):
-            results.append(result)
-
-    return results
+    sleep(1)
+    return x
 
 
-class MainClass():
+class frame():
     def __init__(self) -> None:
         with ui.row().classes('w-full items-center justify-between'):
-            self.subclassA = SubClassA()
-            self.subClassB = SubClassB()
-    
-    
-class SubClassA():
+            self.subclassA = tableA()
+            self.subClassB = tableB()        
+
+
+class tableA():
     def __init__(self) -> None:
-        call_taskA(range(5))  
-        ui.button("TaskA", on_click= lambda: self.run_taskA(range(5)))
-        
-    async def run_taskA(self, x):
-        print("Task A executor will be started")
+        call_taskA('a')  
+        ui.button("TaskA", on_click= lambda: self.run_taskA('a2'))
+    
+    @staticmethod
+    async def run_taskA(x):
+        print("Task A will be started")
         result = await run.cpu_bound(call_taskA, x)
         print(f"Task A finished: {result}")
         
         
-class SubClassB():
+class tableB():
     def __init__(self) -> None:
-        call_taskB(range(5))     
-        ui.button("TaskB", on_click= lambda: self.run_taskB(range(5)))
+        call_taskB('b')
+        ui.button("TaskB", on_click= lambda: self.run_taskB('b2'))
 
-    async def run_taskB(self, x):
-        print("Task B executor will be started")
+    @staticmethod
+    async def run_taskB(x):
+        print("Task B will be started")
         result = await run.cpu_bound(call_taskB, x)
         print(f"Task B finished: {result}")
 
 
-
-
 with ui.column().classes('w-full'):
-    MainClass()
+    frame()
 
 ui.run()
-    
-
