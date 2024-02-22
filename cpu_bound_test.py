@@ -21,11 +21,11 @@ class frame():
 
 class tableA():
     def __init__(self) -> None:
-        call_taskA('a')  
+        result = call_taskA('a')
+        print(f"Task A finished: {result}") 
         ui.button("TaskA", on_click= lambda: self.run_taskA('a2'))
     
-    @staticmethod
-    async def run_taskA(x):
+    async def run_taskA(self, x):
         print("Task A will be started")
         result = await run.cpu_bound(call_taskA, x)
         print(f"Task A finished: {result}")
@@ -33,11 +33,11 @@ class tableA():
         
 class tableB():
     def __init__(self) -> None:
-        call_taskB('b')
+        result = call_taskB('b')
+        print(f"Task B finished: {result}")
         ui.button("TaskB", on_click= lambda: self.run_taskB('b2'))
 
-    @staticmethod
-    async def run_taskB(x):
+    async def run_taskB(self, x):
         print("Task B will be started")
         result = await run.cpu_bound(call_taskB, x)
         print(f"Task B finished: {result}")
