@@ -3,20 +3,13 @@ from time import sleep
     
 def call_taskA(x):
     print("Tasks A will be executed")
-    sleep(1)
+    sleep(3)
     return x
     
 def call_taskB(x):
     print("Tasks B will be executed")
-    sleep(1)
-    return x
-
-
-class frame():
-    def __init__(self) -> None:
-        with ui.row().classes('w-full items-center justify-between'):
-            self.subclassA = tableA()
-            self.subClassB = tableB()        
+    sleep(3)
+    return x  
 
 
 class tableA():
@@ -43,7 +36,10 @@ class tableB():
         print(f"Task B finished: {result}")
 
 
-with ui.column().classes('w-full'):
-    frame()
+@ui.page('/')
+def frame():
+    with ui.row().classes('w-full items-center justify-between'):
+        table_a = tableA()
+        table_b = tableB() 
 
 ui.run()
