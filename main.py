@@ -22,4 +22,13 @@ def main(configFile: str) -> None:
     
     
 if __name__ in {'__main__', '__mp_main__'}:
-    main(Path(__file__).parent.joinpath('config_private.toml'))
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Start Repository Viewer")
+    parser.add_argument("ConfigFile", type=str, help="Path to config file.")
+    args = parser.parse_args()
+    
+    main(args.ConfigFile)
+    
+    #main(Path(__file__).parent.joinpath('config_private.toml'))
+    
