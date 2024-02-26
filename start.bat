@@ -1,2 +1,2 @@
-python D:\Programmieren\Dashboard\LocalRepoViewer\main.py "D:\Programmieren\Dashboard\LocalRepoViewer\config_private.toml" || (pause)
+python C:\HIL\ApplicationArea\EEVMerkenich\Tools\Dashboard\LocalRepoViewer\main.py "C:\HIL\ApplicationArea\EEVMerkenich\Tools\Dashboard\LocalRepoViewer\config.toml" || (pause)
 REM pause

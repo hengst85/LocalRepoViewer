@@ -31,4 +31,5 @@ if __name__ in {'__main__', '__mp_main__'}:
     main(args.ConfigFile)
     
     #main(Path(__file__).parent.joinpath('config_private.toml'))
+    #main(Path(__file__).parent.joinpath('config.toml'))
     

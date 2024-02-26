@@ -10,13 +10,12 @@ from pathlib import Path
 import tomli
 import os
 import asyncio
-from tkinter import Tk, filedialog
 from local_file_picker import local_file_picker
 
 from system_helpers import copy2clipboard
 from log_viewer import log_viewer
 from git_repo_table import git_repo_table
-#from svn_repo_table import svn_repo_table
+from svn_repo_table import svn_repo_table
 
 async def pick_file(initialDir: str) -> str:
     result = await local_file_picker(initialDir, multiple=False)
@@ -43,9 +42,9 @@ class repo_viewer():
             self.git_repo_table.table.visible = False
             
         # Build up svn repo table
-        # self.svn_repo_table = svn_repo_table()
-        # if 'svn_repo' not in self._config.keys():
-        #     self.svn_repo_table.table.visible = False
+        self.svn_repo_table = svn_repo_table()
+        if 'svn_repo' not in self._config.keys():
+            self.svn_repo_table.table.visible = False
 
         # Build up logger
         self.log = log_viewer()
@@ -55,9 +54,9 @@ class repo_viewer():
         if 'git_repo' in self._config.keys():
             self.git_repo_table.init_data(self._config['git_repo'])
 
-        # self.svn_repo_table.add_logger(self.log)
-        # if 'svn_repo' in self._config.keys():
-        #     self.svn_repo_table.init_data(self._config['svn_repo'])
+        self.svn_repo_table.add_logger(self.log)
+        if 'svn_repo' in self._config.keys():
+            self.svn_repo_table.init_data(self._config['svn_repo'])
 
 
     def _load_config(self) -> None:
@@ -107,8 +106,8 @@ class repo_viewer():
             
             await asyncio.sleep(0.5)
             
-        # if 'svn_repo' in self._config.keys():
-        #     await self.svn_repo_table.update_table(self._config['svn_repo'], fullList=True)
-        #     self.svn_repo_table.table.visible = True
-        # else:
-        #     self.svn_repo_table.table.visible = False
+        if 'svn_repo' in self._config.keys():
+            await self.svn_repo_table.update_table(self._config['svn_repo'], fullList=True)
+            self.svn_repo_table.table.visible = True
+        else:
+            self.svn_repo_table.table.visible = False
