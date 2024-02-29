@@ -1,75 +1,108 @@
-[[git_repo]]
+[git_table]
+AutoUpdate = true
+AutoUpdateTime = 900
+
+[[git_table.repo]]
 Path = "C:/HIL/ApplicationArea/EEVMerkenich/Modeling/ApplicationBuild/Components"
 Url = "git@github.com:ford-innersource/eet.hil.ComponentsLibrary.git"
 Branch = "main"
 
-[[git_repo]]
+[[git_table.repo]]
 Path = "C:/HIL/ApplicationArea/EEVMerkenich/Modeling/ApplicationBuild/Project"
 Url = "git@github.com:ford-innersource/eet.hil.ApplicationProject.git"
 Branch = "main"
 
 
-[[git_repo]]
+[[git_table.repo]]
 Path = "C:/HIL/ApplicationArea/EEVMerkenich/Tools/dSPACE/SYNECT/WFMApplicationBuild"
 Url = "git@github.com:ford-innersource/swat.wfm-application-build.git"
 Branch = "main"
 
-[[git_repo]]
+[[git_table.repo]]
 Path = "C:/HIL/ApplicationArea/EEVMerkenich/Modeling/ModelDevelopment/FordHilToolbox"
 Url = "git@github.com:ford-innersource/eet.hil.FordHilToolbox.git"
 Branch = "NewModelStructure"
 
-[[git_repo]]
+[[git_table.repo]]
 Path = "C:/HIL/ApplicationArea/EEVMerkenich/Modeling/ModelDevelopment/InterfaceData"
 Url = "git@github.com:ford-innersource/eet.hil.InterfaceData.git"
 Branch = "main"
 
 
 
-[[git_repo]]
+[[git_table.repo]]
 Path = "C:/HIL/ApplicationArea/EEVMerkenich/Modeling/ModelDevelopment/_ECUs"
 Url = "git@github.com:ford-innersource/eet.hil.EcuModels.git"
 Branch = "main"
 
-[[git_repo]]
+[[git_table.repo]]
 Path = "C:/HIL/ApplicationArea/EEVMerkenich/Modeling/ModelDevelopment/_Facility"
 Url = "git@github.com:ford-innersource/eet.hil.FacilityModels.git"
 Branch = "main"
 
-[[git_repo]]
+[[git_table.repo]]
 Path = "C:/HIL/ApplicationArea/EEVMerkenich/Modeling/ModelDevelopment/_Vehicle/_Architecture/_BusSystems"
 Url = "git@github.com:ford-innersource/eet.hil.ModelsBusSystems.git"
 Branch = "main"
 
-[[git_repo]]
+[[git_table.repo]]
 Path = "C:/HIL/ApplicationArea/EEVMerkenich/Modeling/ModelDevelopment/_Vehicle/_Architecture/_Networks"
 Url = "git@github.com:ford-innersource/eet.hil.NetworkProjects.git"
 Branch = "main"
 
-[[git_repo]]
+[[git_table.repo]]
 Path = "C:/HIL/ApplicationArea/EEVMerkenich/Modeling/ModelDevelopment/Generic/ASM"
 Url = "git@github.com:ford-innersource/eet.hil.ModelsAsm.git"
 Branch = "main"
 
-[[git_repo]]
+[[git_table.repo]]
 Path = "C:/HIL/ApplicationArea/EEVMerkenich/Modeling/ModelDevelopment/Generic/Body"
 Url = "git@github.com:ford-innersource/eet.hil.ModelsBody.git"
 Branch = "main"
 
-[[git_repo]]
+[[git_table.repo]]
 Path = "C:/HIL/ApplicationArea/EEVMerkenich/Modeling/ModelDevelopment/Generic/UserInput"
 Url = "git@github.com:ford-innersource/eet.hil.ModelsUserInput.git"
 Branch = "main"
 
+#########################################################################################
+[svn_table]
+AutoUpdate = false
+AutoUpdateTime = 900
 
 
-[[svn_repo]]
+[[svn_table.repo]]
 Path = "C:/HIL/ApplicationArea/EEVMerkenich/Tools/dSPACE/SYNECT/Base"
 ServerUrl = "https://wgc100cn4lxj2.merkenich.ford.com/svn/HiL-Releases"
 RepoDir = "trunk/ApplicationArea/EEVMerkenich/Tools/dSPACE/SYNECT/Base"
 
 
-[[svn_repo]]
+[[svn_table.repo]]
 Path = "C:/HIL/ApplicationArea/EEVMerkenich/Tools/dSPACE/SYNECT/GoFiles"
 ServerUrl = "https://wgc100cn4lxj2.merkenich.ford.com/svn/HiL-Releases"
 RepoDir = "trunk/ApplicationArea/EEVMerkenich/Tools/dSPACE/SYNECT/GoFiles"
+
+
+# [[svn_table.repo]]
+# Path = "C:/HIL/ApplicationArea/EEVMerkenich/Tools/dSPACE/SYNECT/Client"
+# ServerUrl = "https://wgc100cn4lxj2.merkenich.ford.com/svn/HiL-Releases"
+# RepoDir = "trunk/ApplicationArea/EEVMerkenich/Tools/dSPACE/SYNECT/Client"
+
+
+# [[svn_table.repo]]
+# Path = "C:/HIL/ApplicationArea/EEVMerkenich/Tools/dSPACE/SYNECT/WFM"
+# ServerUrl = "https://wgc100cn4lxj2.merkenich.ford.com/svn/SYNECT"
+# RepoDir = "trunk/WFM"
+
+
+# [[svn_table.repo]]
+# Path = "C:/HIL/ApplicationArea/EEVMerkenich/Tools/dSPACE/SYNECT/WFMHILSetup"
+# ServerUrl = "https://wgc100cn4lxj2.merkenich.ford.com/svn/SYNECT"
+# RepoDir = "trunk/WFMHILSetup"
+
+
+
+# [[svn_table.repo]]
+# Path = "C:/Users/SHENGSTM/Favorites/Links/LinksEEV"
+# ServerUrl = "https://wgc100cn4lxj2.merkenich.ford.com/svn/HiL-Releases"
+# RepoDir = "trunk/ApplicationArea/EEVMerkenich/Links"

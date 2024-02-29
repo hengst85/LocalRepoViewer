@@ -38,12 +38,12 @@ class repo_viewer():
                 
         # Build up git repo table
         self.git_repo_table = git_repo_table()
-        if 'git_repo' not in self._config.keys():
+        if 'git_table' not in self._config.keys():
             self.git_repo_table.table.visible = False
             
         # Build up svn repo table
         self.svn_repo_table = svn_repo_table()
-        if 'svn_repo' not in self._config.keys():
+        if 'svn_table' not in self._config.keys():
             self.svn_repo_table.table.visible = False
 
         # Build up logger
@@ -51,12 +51,12 @@ class repo_viewer():
 
         # Add logger to table and update tables
         self.git_repo_table.add_logger(self.log)
-        if 'git_repo' in self._config.keys():
-            self.git_repo_table.init_data(self._config['git_repo'])
+        if 'git_table' in self._config.keys():
+            self.git_repo_table.init_data(self._config['git_table'])
 
         self.svn_repo_table.add_logger(self.log)
-        if 'svn_repo' in self._config.keys():
-            self.svn_repo_table.init_data(self._config['svn_repo'])
+        if 'svn_table' in self._config.keys():
+            self.svn_repo_table.init_data(self._config['svn_table'])
 
 
     def _load_config(self) -> None:
@@ -98,16 +98,38 @@ class repo_viewer():
         self._load_config()
         
         # Update tables
-        if 'git_repo' in self._config.keys():
-            await self.git_repo_table.update_table(self._config['git_repo'], fullList=True)
+        if 'git_table' in self._config.keys():
+            await self.git_repo_table.update_table(self._config['git_table']['repo'], fullList=True)
             self.git_repo_table.table.visible = True
+            
+            # Set timer
+            if 'AutoUpdateTime' in self._config['git_table'].keys():
+                self.git_repo_table.timer.interval = self._config['git_table']['AutoUpdateTime']
+            if 'AutoUpdate' in self._config['git_table'].keys():
+                if self._config['git_table']['AutoUpdate']:
+                    self.git_repo_table.timer.activate()
+                else:
+                    self.git_repo_table.timer.deactivate()
+            
         else:
             self.git_repo_table.table.visible = False
+            self.git_repo_table.timer.deactivate()
             
-            await asyncio.sleep(0.5)
+        await asyncio.sleep(0.5)
             
-        if 'svn_repo' in self._config.keys():
-            await self.svn_repo_table.update_table(self._config['svn_repo'], fullList=True)
+        if 'svn_table' in self._config.keys():
+            await self.svn_repo_table.update_table(self._config['svn_table']['repo'], fullList=True)
             self.svn_repo_table.table.visible = True
+            
+            # Set timer
+            if 'AutoUpdateTime' in self._config['svn_table'].keys():
+                self.svn_repo_table.timer.interval = self._config['svn_table']['AutoUpdateTime']
+            if 'AutoUpdate' in self._config['svn_table'].keys():
+                if self._config['svn_table']['AutoUpdate']:
+                    self.svn_repo_table.timer.activate()
+                else:
+                    self.svn_repo_table.timer.deactivate()
+            
         else:
             self.svn_repo_table.table.visible = False
+            self.svn_repo_table.timer.deactivate()

@@ -124,8 +124,8 @@ class svn_repo_table():
                     ui.tooltip('Update local repositories and refresh table')
                 with ui.button('Refresh', on_click=lambda: self.update_table(self.table.rows), color='primary', icon='refresh').props('flat'):
                     ui.tooltip('Refresh table')
-                with ui.switch(value=False).bind_value_to(self.timer, 'active').props('icon="autorenew"'):
-                    ui.tooltip('Refresh table all 15 minutes')
+                with ui.switch(value=False).bind_value(self.timer, 'active').props('icon="autorenew"'):
+                    ui.tooltip('Refresh table periodic')
                 
 
 
@@ -324,13 +324,23 @@ class svn_repo_table():
             }]
 
 
-    def init_data(self, repos: list = []) -> None:
+    def init_data(self, tableData: dict) -> None:
         # Fetch given repos
         self._log.info_message("Initialize Svn repository table...")
 
         # Update table
-        results = get_svn_repo_status_parallel(repos)
+        results = get_svn_repo_status_parallel(tableData['repo'])
         self.table.update_rows(results)
+        
+        # Set timer
+        if 'AutoUpdateTime' in tableData.keys():
+            self.timer.interval = tableData['AutoUpdateTime']
+        if 'AutoUpdate' in tableData.keys():
+            if tableData['AutoUpdate']:
+                self.timer.activate()
+            else:
+                self.timer.deactivate()
+        
         self._log.info_message("...done!")
 
 

@@ -169,8 +169,8 @@ class git_repo_table():
                     ui.tooltip('Push to remote and update table')
                 with ui.button('Refresh', on_click=lambda: self.update_table(self.table.rows), color='primary', icon='refresh').props('flat'):
                     ui.tooltip('Fetch from remote and update table')
-                with ui.switch(value=False).bind_value_to(self.timer, 'active').props('icon="autorenew"'):
-                    ui.tooltip('Updates table all 15 minutes')
+                with ui.switch(value=False).bind_value(self.timer, 'active').props('icon="autorenew"'):
+                    ui.tooltip('Refresh table periodic')
 
             self.table.add_slot('header', r'''
                 <q-tr :props="props">
@@ -294,14 +294,24 @@ class git_repo_table():
         self._log = logger
     
     
-    def init_data(self, repos: list = []) -> None:
+    def init_data(self, tableData: dict) -> None:
         # Fetch given repos
         self._log.info_message("Initialize Git repository table...")
-        fetch_repos_parallel([r['Path'] for r in repos])
+        fetch_repos_parallel([r['Path'] for r in tableData['repo']])
 
         # Update table
-        results = get_git_repo_status_parallel(repos)
+        results = get_git_repo_status_parallel(tableData['repo'])
         self.table.update_rows(results)
+        
+        # Set timer
+        if 'AutoUpdateTime' in tableData.keys():
+            self.timer.interval = tableData['AutoUpdateTime']
+        if 'AutoUpdate' in tableData.keys():
+            if tableData['AutoUpdate']:
+                self.timer.activate()
+            else:
+                self.timer.deactivate()
+                
         self._log.info_message("...done!")
 
 
