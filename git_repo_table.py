@@ -136,7 +136,6 @@ def get_repo_status(r: dict) -> dict:
 
 def get_multiple_repo_status(repos: list) -> list:
     repo_status = []
-    print(f"GIT: {repos}")
     with ThreadPoolExecutor() as executor:
         try:
             for result in executor.map(get_repo_status, repos, timeout=10):

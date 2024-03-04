@@ -7,7 +7,7 @@ Import Modules """
 import os
 import sys
 import json
-import subprocess
+import  subprocess
 from git import Repo
 from zipfile import ZipFile
 from pathlib import Path
@@ -265,17 +265,19 @@ class ExtendedGitRepo(Repo):
     
     def openBash(self) -> None:
         #os.system(f'start "" "{os.getenv("HILGitBashPath", None)}" --cd="{self.working_dir}"')
-        subprocess.Popen([os.getenv('HilGitBashPath'),f'--cd={self.working_dir}'])
+        subprocess.Popen([os.getenv('HilGitBashPath'),f'--cd={self.working_dir}'], creationflags=subprocess.CREATE_NEW_CONSOLE)
     
         
     def openGithub(self) -> None:
         os.chdir(self.working_dir)
         subprocess.run(['gh','repo', 'view', '-w'])
         
+        
     def openFileInGithub(self, filepath: str) -> None:
         # https://cli.github.com/manual/gh_browse
         os.chdir(self.working_dir)
         subprocess.run(['gh','browse', filepath, '--branch', self.active_branch.name])
+    
         
     def getLastCommitFromGithub(self) -> None:
         # https://cli.github.com/manual/gh_browse
