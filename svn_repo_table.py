@@ -399,4 +399,4 @@ class svn_repo_table():
         
     def _openTerminal(self, repo: dict) -> None:
         repo = SvnRepo(repo['Path'], repo['Path'], repo['ServerUrl'], '/'.join([repo['ServerUrl'], repo['RepoDir']]), '<winauth>', '')
-        repo.openBash()
+        repo.openPowershell()

@@ -267,6 +267,10 @@ class ExtendedGitRepo(Repo):
         #os.system(f'start "" "{os.getenv("HILGitBashPath", None)}" --cd="{self.working_dir}"')
         subprocess.Popen([os.getenv('HilGitBashPath'),f'--cd={self.working_dir}'], creationflags=subprocess.CREATE_NEW_CONSOLE)
     
+    
+    def openPowershell(self) -> None:
+        subprocess.Popen(f"C:/Program Files/PowerShell/7/pwsh.exe -NoExit -Command Set-Location -LiteralPath '{self.working_dir}'", creationflags=subprocess.CREATE_NEW_CONSOLE)
+        
         
     def openGithub(self) -> None:
         os.chdir(self.working_dir)

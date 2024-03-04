@@ -291,11 +291,11 @@ class ExtendedSvnRepo(Repository):
     
     def openBash(self) -> None:
         #os.system(f'start "" "{os.getenv("HILGitBashPath", None)}" --cd="{self._localWorkingFolder}"')
-        subprocess.Popen([os.getenv('HilGitBashPath'),f'--cd={self._localWorkingFolder}'])
+        subprocess.Popen([os.getenv('HilGitBashPath'),f'--cd={self._localWorkingFolder}'], creationflags=subprocess.CREATE_NEW_CONSOLE)
     
     
     def openPowershell(self) -> None:
-        subprocess.Popen(f"C:/Program Files/PowerShell/7/pwsh.exe -NoExit -Command Set-Location -LiteralPath '{self._localWorkingFolder}'")
+        subprocess.Popen(f"C:/Program Files/PowerShell/7/pwsh.exe -NoExit -Command Set-Location -LiteralPath '{self._localWorkingFolder}'", creationflags=subprocess.CREATE_NEW_CONSOLE)
         
         
     def openRepoBrowser(self) -> None:
