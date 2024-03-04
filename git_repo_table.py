@@ -101,7 +101,7 @@ def git_repo_status(repoPath: str) -> str:
     return repoStatus
 
 
-def get_git_repo_status(r: dict) -> dict:
+def get_repo_status(r: dict) -> dict:
     print(f"GIT: {r['Path']} started!")
     if Path(r['Path']).is_dir() and Path(r['Path']).joinpath('.git').is_dir():
         repo = GitRepo(r['Path'])
@@ -134,12 +134,12 @@ def get_git_repo_status(r: dict) -> dict:
             }
 
 
-def get_git_repo_status_parallel(repos: list) -> list:
+def get_multiple_repo_status(repos: list) -> list:
     repo_status = []
     print(f"GIT: {repos}")
     with ThreadPoolExecutor() as executor:
         try:
-            for result in executor.map(get_git_repo_status, repos, timeout=10):
+            for result in executor.map(get_repo_status, repos, timeout=10):
                 repo_status.append(result)
         except TimeoutError:
             print('Time out waiting to get git repository status.') 
@@ -300,7 +300,7 @@ class git_repo_table():
         fetch_repos_parallel([r['Path'] for r in tableData['repo']])
 
         # Update table
-        results = get_git_repo_status_parallel(tableData['repo'])
+        results = get_multiple_repo_status(tableData['repo'])
         self.table.update_rows(results)
         
         # Set timer
@@ -318,7 +318,7 @@ class git_repo_table():
     async def __periodic_update_table(self, repos: list = []) -> None:
         self._log.info_message("Update Git repository table...")
         await run.io_bound(fetch_repos_parallel, [r['Path'] for r in repos])
-        results = await run.cpu_bound(get_git_repo_status_parallel, repos)
+        results = await run.cpu_bound(get_multiple_repo_status, repos)
         self.__update_rows(results)
         self._log.info_message("...done!")
         
@@ -332,7 +332,7 @@ class git_repo_table():
         await run.io_bound(fetch_repos_parallel, [r['Path'] for r in repos])
         n.message = 'Get Git repo status!'
         await asyncio.sleep(0.1)
-        results = await run.cpu_bound(get_git_repo_status_parallel, repos)
+        results = await run.cpu_bound(get_multiple_repo_status, repos)
         n.message = 'Update Git table!'
         await asyncio.sleep(0.1)
         if fullList:
@@ -358,7 +358,7 @@ class git_repo_table():
                 self._log.info_message(f"{result['Path']}:\n{result['Message']}")
         await asyncio.sleep(0.5)
         n.message = 'Get Git repo status!'
-        results = await run.cpu_bound(get_git_repo_status_parallel, repos)
+        results = await run.cpu_bound(get_multiple_repo_status, repos)
         n.message = 'Update Git table!'
         await asyncio.sleep(0.5)
         self.__update_rows(results)
@@ -381,7 +381,7 @@ class git_repo_table():
                 self._log.info_message(f"{result['Path']}:\n{result['Message']}")
         await asyncio.sleep(0.5)
         n.message = 'Get Git repo status!'
-        results = await run.cpu_bound(get_git_repo_status_parallel, repos)
+        results = await run.cpu_bound(get_multiple_repo_status, repos)
         n.message = 'Update Git table!'
         await asyncio.sleep(0.5)
         self.__update_rows(results)
@@ -498,7 +498,7 @@ class git_repo_table():
         result = await run.io_bound(clone_repo, repo['Path'], repo['Url'], repo['Branch'])
         if result:
             self._log.warning_message(f"{result}")
-        results = await run.cpu_bound(get_git_repo_status_parallel, [repo])
+        results = await run.cpu_bound(get_multiple_repo_status, [repo])
         await asyncio.sleep(0.1)
         self.__update_rows(results)
         n.message = 'Done!'

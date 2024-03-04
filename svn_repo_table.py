@@ -1,13 +1,8 @@
 from nicegui import ui, run, background_tasks
 from pathlib import Path
 import asyncio
-from random import random
-from time import sleep
-from concurrent.futures import ThreadPoolExecutor
-from concurrent.futures import TimeoutError
 
 from CM.Svn import ExtendedSvnRepo as SvnRepo
-
 
 from system_helpers import copy2clipboard
 from log_viewer import log_viewer
@@ -25,12 +20,11 @@ def svn_repo_status(repo: SvnRepo) -> str:
     return repoStatus
 
 
-def get_svn_repo_status(r: dict) -> dict:
+def get_repo_status(r: dict) -> dict:
     print(f"SVN: {r['Path']} started!")
     if Path(r['Path']).is_dir() and Path(r['Path']).joinpath('.svn').is_dir():
         repo = SvnRepo(r['Path'], r['Path'], r['ServerUrl'], '/'.join([r['ServerUrl'], r['RepoDir']]), '<winauth>', '')
         print(f"SVN: {r['Path']} repo object is initialized!")
-        sleep(random())
         repoStatus = svn_repo_status(repo)
         print(f"SVN: {r['Path']} return result!")
         return {
@@ -57,20 +51,15 @@ def get_svn_repo_status(r: dict) -> dict:
             }
     
 
-def get_svn_repo_status_parallel(repos: list) -> list:
+def get_multiple_repos_status(repos: list) -> list:
     repo_status = []
-    print(f"SVN: {repos}")
-    with ThreadPoolExecutor() as executor:
-        try:
-            for result in executor.map(get_svn_repo_status, repos, timeout=10):
-                repo_status.append(result)
-        except TimeoutError:
-            print('Time out waiting to get svn repository status.') 
-                
+    for repo in repos:
+        repo_status.append(get_repo_status(repo))
+    
     return repo_status
 
 
-def update_svn_repo(r: dict) -> list:
+def update_repo(r: dict) -> list:
     try:
         repo = SvnRepo(r['Path'], r['Path'], r['ServerUrl'], '/'.join([r['ServerUrl'], r['RepoDir']]), '<winauth>', '')
         result = repo.update()
@@ -91,16 +80,12 @@ def update_svn_repo(r: dict) -> list:
                 'Message': str(e)}
 
 
-
-def update_svn_repos_parallel(repos: list) -> list:
+def update_multiple_repos(repos: list) -> list:
     results = []
-    with ThreadPoolExecutor() as executor: 
-        try:   
-            for result in executor.map(update_svn_repo, repos, timeout=10):
-                results.append(result)
-        except TimeoutError:
-            print('Time out waiting for update svn repositories.')    
-            
+    # Iteration over given repos
+    for repo in repos:
+        results.append(update_repo(repo))
+    
     return results
 
 
@@ -329,7 +314,7 @@ class svn_repo_table():
         self._log.info_message("Initialize Svn repository table...")
 
         # Update table
-        results = get_svn_repo_status_parallel(tableData['repo'])
+        results = get_multiple_repos_status(tableData['repo'])
         self.table.update_rows(results)
         
         # Set timer
@@ -346,7 +331,7 @@ class svn_repo_table():
 
     async def __periodic_update_table(self, repos: list = []) -> None:
         self._log.info_message("Update Svn repository table...")
-        results = await run.cpu_bound(get_svn_repo_status_parallel, repos)
+        results = await run.cpu_bound(get_multiple_repos_status, repos)
         self.__update_rows(results)
         self._log.info_message("...done!")
         
@@ -366,7 +351,7 @@ class svn_repo_table():
             self._log.info_message(f"   ....{repo}")
         n = ui.notification(message='Get Svn repo status!', spinner=True, timeout=None, color='primary')
         await asyncio.sleep(0.1)
-        results = await run.cpu_bound(get_svn_repo_status_parallel, repos)
+        results = await run.cpu_bound(get_multiple_repos_status, repos)
         n.message = 'Update Svn table!'
         await asyncio.sleep(0.5)
         if fullList:
@@ -384,14 +369,14 @@ class svn_repo_table():
         self._log.info_message("Update Svn repositories...")
         n = ui.notification(message='Update from remote', spinner=True, timeout=None, color='primary')
         await asyncio.sleep(0.1)
-        results = await run.io_bound(update_svn_repos_parallel, [r for r in repos if r['isRepo']])
+        results = await run.io_bound(update_multiple_repos, [r for r in repos if r['isRepo']])
         for result in results:
             if result['Error']:
                 self._log.warning_message(f"{result['Path']}:\n{result['Message']}")
             else:
                 self._log.info_message(f"{result['Path']}:\n{result['Message']}")
         n.message = 'Get Svn repo status!'
-        results = await run.cpu_bound(get_svn_repo_status_parallel, repos)
+        results = await run.cpu_bound(get_multiple_repos_status, repos)
         n.message = 'Update Svn table!'
         await asyncio.sleep(0.5)
         self.__update_rows(results)
