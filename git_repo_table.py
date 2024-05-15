@@ -285,7 +285,7 @@ class git_repo_table():
             self.table.on('clone', lambda e: self._clone_repo(e.args['row']))
             
             self.table.on('open', lambda e: GitRepo(e.args['row']['Path']).openExplorer())
-            self.table.on('bash', lambda e: GitRepo(e.args['row']['Path']).openBash())
+            self.table.on('bash', lambda e: GitRepo(e.args['row']['Path']).openPowershell())
             self.table.on('github', lambda e: GitRepo(e.args['row']['Path']).openGithub())
 
     
