@@ -21,7 +21,7 @@ Branch = "main"
 [[git_table.repo]]
 Path = "C:/HIL/ApplicationArea/EEVMerkenich/Modeling/ModelDevelopment/FordHilToolbox"
 Url = "git@github.com:ford-innersource/eet.hil.FordHilToolbox.git"
-Branch = "NewModelStructure"
+Branch = "main"
 
 [[git_table.repo]]
 Path = "C:/HIL/ApplicationArea/EEVMerkenich/Modeling/ModelDevelopment/InterfaceData"
