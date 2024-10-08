@@ -1,2 +1,8 @@
-py -3.9 C:\HIL\ApplicationArea\EEVMerkenich\Tools\Dashboard\LocalRepoViewer\main.py "C:\HIL\ApplicationArea\EEVMerkenich\Tools\Dashboard\LocalRepoViewer\config.toml" || (pause)
-REM pause
+REM Define the path to the main Python script
+SET MAIN_FILE=%~dp0main.py
+
+REM Define the path to the configuration file
+SET CONFIG_FILE=%~dp0..\..\LocalRepoViewer\config.toml
+
+REM Run the Python script with the specified configuration file
+py -3.9 "%MAIN_FILE%" "%CONFIG_FILE%" || (pause)
